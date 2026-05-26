@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.edge-profile*/
+.edge-*/
+.edge-screenshot.png
+edge-test-shot.png

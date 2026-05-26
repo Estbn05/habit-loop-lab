@@ -1,0 +1,22 @@
+{
+  "name": "habit-loop-lab",
+  "version": "1.0.0",
+  "description": "Identity-first habit tracker with if-then planning, relapse reframing, and automaticity metrics.",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check": "node --check app.js && node --check server.mjs && node --check scripts/smoke-test.mjs",
+    "test": "npm run check && node scripts/smoke-test.mjs"
+  },
+  "keywords": [
+    "habit-tracker",
+    "behavior-design",
+    "local-first",
+    "portfolio",
+    "vanilla-js"
+  ],
+  "author": "Yefry",
+  "license": "MIT"
+}

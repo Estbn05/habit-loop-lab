@@ -41,9 +41,100 @@ const reminderPolicies = {
   },
 };
 
+const onboardingSteps = [
+  {
+    id: "name",
+    eyebrow: "Inicio",
+    title: "¿Cómo quieres que te llame?",
+    why: "Esto hace que la app se sienta personal sin convertir el proceso en una evaluación pesada.",
+    example: "Ejemplo: Yefry",
+    optional: true,
+  },
+  {
+    id: "chronotype",
+    eyebrow: "Energía",
+    title: "¿En qué momento funcionas mejor?",
+    why: "El horario importa porque los hábitos difíciles suelen necesitar contextos estables y poca fatiga de decisión.",
+    example: "Si no estás seguro, deja Mañana para empezar con menos fricción.",
+  },
+  {
+    id: "readiness",
+    eyebrow: "Diagnóstico",
+    title: "¿Qué tan listo te sientes para cambiar?",
+    why: "Esta escala ayuda a ubicar tu etapa de cambio sin preguntarte demasiado.",
+    example: "0 significa nada listo; 10 significa listo para actuar hoy.",
+  },
+  {
+    id: "confidence",
+    eyebrow: "Diagnóstico",
+    title: "¿Qué tanta confianza tienes esta semana?",
+    why: "Si la confianza es baja, el hábito debe hacerse más pequeño, no más ambicioso.",
+    example: "Si dudas, pon 5 o menos. Eso le dice a la app que reduzca la fricción.",
+  },
+  {
+    id: "identity",
+    eyebrow: "Identidad",
+    title: "¿Qué identidad quieres reforzar?",
+    why: "La app no busca solo resultados. Cada hábito será un micro-voto por esta identidad.",
+    example: "Soy una persona que cuida su cuerpo.",
+  },
+  {
+    id: "changeTalk",
+    eyebrow: "Motivo propio",
+    title: "¿Por qué este cambio importa para ti?",
+    why: "Esto convierte una intención abstracta en lenguaje de cambio propio, sin presión externa.",
+    example: "Si esto mejora 1%, voy a sentir más control sobre mi día.",
+    optional: true,
+  },
+  {
+    id: "anchor",
+    eyebrow: "Señal",
+    title: "¿Después de qué rutina existente ocurrirá?",
+    why: "Un hábito nuevo se pega mejor a una señal que ya existe en tu día.",
+    example: "Después de servirme café.",
+  },
+  {
+    id: "action",
+    eyebrow: "Respuesta mínima",
+    title: "¿Cuál será la acción de dos minutos?",
+    why: "La meta inicial es que la acción sea tan pequeña que la motivación no tenga que decidir.",
+    example: "Leer una página, hacer 5 sentadillas, anotar un gasto.",
+  },
+  {
+    id: "desiredState",
+    eyebrow: "Craving",
+    title: "¿Qué estado quieres anticipar?",
+    why: "El deseo de sentir un cambio de estado es la fuerza que empuja la respuesta.",
+    example: "Claridad, calma, energía, orgullo tranquilo.",
+  },
+  {
+    id: "schedule",
+    eyebrow: "Fricción",
+    title: "¿Qué tan difícil se siente y cuándo lo harás?",
+    why: "Si se siente difícil, la app sugiere hacerlo temprano para proteger la energía mental.",
+    example: "Dificultad 2 y hora 07:30 para empezar simple.",
+  },
+  {
+    id: "celebration",
+    eyebrow: "Recompensa",
+    title: "¿Cómo cerrarás el ciclo?",
+    why: "Una celebración inmediata le da al cerebro una señal positiva sin depender de premios externos.",
+    example: "Respirar y decir: esto cuenta.",
+    optional: true,
+  },
+  {
+    id: "review",
+    eyebrow: "Revisión",
+    title: "Tu primer bucle está listo",
+    why: "Revisa que el plan sea pequeño, claro y unido a una señal real.",
+    example: "Después de café, leeré una página para sentir claridad.",
+  },
+];
+
 const ui = {
   showHabitForm: false,
   editingHabitId: null,
+  onboardingStep: 0,
   reward: null,
   toast: "",
 };
@@ -73,6 +164,15 @@ function loadState() {
       changeTalk: "",
       notifications: false,
       createdAt: todayKey(),
+      onboardingStep: 0,
+      draftHabit: {
+        anchor: "",
+        action: "",
+        desiredState: "",
+        time: "",
+        difficulty: 3,
+        celebration: "",
+      },
     },
     habits: [],
     selectedHabitId: null,
@@ -87,7 +187,14 @@ function loadState() {
     return {
       ...fallback,
       ...parsed,
-      profile: { ...fallback.profile, ...(parsed.profile || {}) },
+      profile: {
+        ...fallback.profile,
+        ...(parsed.profile || {}),
+        draftHabit: {
+          ...fallback.profile.draftHabit,
+          ...(parsed.profile?.draftHabit || {}),
+        },
+      },
       habits: Array.isArray(parsed.habits) ? parsed.habits : [],
       rewardHistory: Array.isArray(parsed.rewardHistory) ? parsed.rewardHistory : [],
       reflections: Array.isArray(parsed.reflections) ? parsed.reflections : [],
@@ -117,7 +224,11 @@ function render() {
 function renderOnboarding() {
   const stage = diagnoseStage(state.profile.readiness, state.profile.confidence);
   const copy = stageCopy[stage];
-  const suggestedTime = getSuggestedTime(state.profile.chronotype, 3);
+  const draft = getOnboardingDraft();
+  const stepIndex = getOnboardingStepIndex();
+  const step = onboardingSteps[stepIndex];
+  const progress = Math.round(((stepIndex + 1) / onboardingSteps.length) * 100);
+  const isFinalStep = step.id === "review";
 
   return `
     <main class="onboarding-wrap">
@@ -143,106 +254,211 @@ function renderOnboarding() {
           </aside>
         </div>
 
-        <form id="onboarding-form">
-          <div class="form-grid">
-            <label class="form-field">
-              Tu nombre
-              <input name="name" autocomplete="name" placeholder="Yefry" value="${escapeAttr(state.profile.name)}" />
-            </label>
+        ${ui.toast ? `<div class="toast onboarding-toast" role="status">${escapeHtml(ui.toast)}</div>` : ""}
 
-            <label class="form-field">
-              Cronotipo
-              <select name="chronotype" id="chronotype-select">
-                ${option("morning", "Mañana", state.profile.chronotype)}
-                ${option("balanced", "Flexible", state.profile.chronotype)}
-                ${option("evening", "Noche", state.profile.chronotype)}
-              </select>
-            </label>
+        <form id="onboarding-form" class="onboarding-form" data-step="${step.id}">
+          <div class="onboarding-progress" aria-label="Progreso del cuestionario">
+            <span>Paso ${stepIndex + 1} de ${onboardingSteps.length}</span>
+            <div class="progress-shell">
+              <div class="progress-bar" style="--value: ${progress}%"></div>
+            </div>
+          </div>
 
-            <label class="form-field">
-              Preparación para cambiar
-              <span class="range-line">
-                <input id="readiness" name="readiness" type="range" min="0" max="10" value="${state.profile.readiness}" />
-                <span class="range-value" id="readiness-value">${state.profile.readiness}</span>
-              </span>
-            </label>
-
-            <label class="form-field">
-              Confianza para hacerlo esta semana
-              <span class="range-line">
-                <input id="confidence" name="confidence" type="range" min="0" max="10" value="${state.profile.confidence}" />
-                <span class="range-value" id="confidence-value">${state.profile.confidence}</span>
-              </span>
-            </label>
-
-            <label class="form-field full">
-              Identidad deseada
-              <input
-                name="identity"
-                required
-                maxlength="96"
-                value="${escapeAttr(state.profile.identity)}"
-                placeholder="Soy una persona que lee antes de dormir"
-              />
-            </label>
-
-            <label class="form-field full">
-              Lenguaje de cambio
-              <textarea
-                name="changeTalk"
-                maxlength="240"
-                placeholder="Si esto mejora 1%, notaré..."
-              >${escapeHtml(state.profile.changeTalk)}</textarea>
-            </label>
-
-            <div class="stage-guidance full" id="stage-guidance">
-              ${renderStageGuidance(stage)}
+          <article class="question-card">
+            <div class="question-copy">
+              <span>${escapeHtml(step.eyebrow)}</span>
+              <h2>${escapeHtml(step.title)}</h2>
+              <p>${escapeHtml(step.why)}</p>
             </div>
 
-            <label class="form-field">
-              Después de esta rutina
-              <input name="anchor" required maxlength="80" placeholder="servir el café" />
-            </label>
+            <div class="example-box">
+              <strong>Ejemplo</strong>
+              <p>${escapeHtml(step.example)}</p>
+            </div>
 
-            <label class="form-field">
-              Haré esta acción de dos minutos
-              <input name="action" required maxlength="80" placeholder="leer una página" />
-            </label>
+            ${renderOnboardingField(step, draft)}
+          </article>
 
-            <label class="form-field">
-              Estado que espero sentir
-              <input name="desiredState" required maxlength="72" placeholder="claridad, calma, energía" />
-            </label>
-
-            <label class="form-field">
-              Hora sugerida
-              <input name="time" id="habit-time" type="time" value="${suggestedTime}" />
-            </label>
-
-            <label class="form-field">
-              Dificultad percibida
-              <span class="range-line">
-                <input id="difficulty" name="difficulty" type="range" min="1" max="5" value="3" />
-                <span class="range-value" id="difficulty-value">3</span>
-              </span>
-            </label>
-
-            <label class="form-field">
-              Celebración inmediata
-              <input name="celebration" maxlength="72" placeholder="respirar y decir: esto cuenta" />
-            </label>
-          </div>
+          ${renderOnboardingPreview(draft)}
 
           <div class="form-footer">
             <p class="fine-print">
-              Estandariza antes de optimizar: 1 voto ahora, máximo ${MAX_HABITS} hábitos activos.
-              <span id="schedule-suggestion">${getScheduleSuggestion(state.profile.chronotype, 3)}</span>
+              Autoguardado activo. Puedes recargar la página y seguir donde ibas.
+              <span id="schedule-suggestion">${getScheduleSuggestion(state.profile.chronotype, draft.difficulty)}</span>
             </p>
-            <button class="button primary" type="submit">Crear mi primer voto</button>
+            <div class="wizard-actions">
+              <button
+                class="button ghost"
+                type="button"
+                data-action="onboarding-back"
+                ${stepIndex === 0 ? "disabled" : ""}
+              >
+                Atrás
+              </button>
+              ${isFinalStep
+                ? `<button class="button primary" type="submit">Crear mi primer voto</button>`
+                : `<button class="button primary" type="button" data-action="onboarding-next">Siguiente</button>`
+              }
+            </div>
           </div>
         </form>
       </section>
     </main>
+  `;
+}
+
+function renderOnboardingField(step, draft) {
+  if (step.id === "name") {
+    return `
+      <label class="form-field question-field">
+        Tu nombre
+        <input name="name" autocomplete="name" placeholder="Yefry" value="${escapeAttr(state.profile.name)}" />
+      </label>
+    `;
+  }
+
+  if (step.id === "chronotype") {
+    return `
+      <label class="form-field question-field">
+        Cronotipo
+        <select name="chronotype" id="chronotype-select">
+          ${option("morning", "Mañana", state.profile.chronotype)}
+          ${option("balanced", "Flexible", state.profile.chronotype)}
+          ${option("evening", "Noche", state.profile.chronotype)}
+        </select>
+      </label>
+    `;
+  }
+
+  if (step.id === "readiness") {
+    return `
+      <label class="form-field question-field">
+        Preparación para cambiar
+        <span class="range-line">
+          <input id="readiness" name="readiness" type="range" min="0" max="10" value="${state.profile.readiness}" />
+          <span class="range-value" id="readiness-value">${state.profile.readiness}</span>
+        </span>
+      </label>
+    `;
+  }
+
+  if (step.id === "confidence") {
+    return `
+      <label class="form-field question-field">
+        Confianza para hacerlo esta semana
+        <span class="range-line">
+          <input id="confidence" name="confidence" type="range" min="0" max="10" value="${state.profile.confidence}" />
+          <span class="range-value" id="confidence-value">${state.profile.confidence}</span>
+        </span>
+      </label>
+    `;
+  }
+
+  if (step.id === "identity") {
+    return `
+      <label class="form-field question-field">
+        Identidad deseada
+        <input
+          name="identity"
+          maxlength="96"
+          value="${escapeAttr(state.profile.identity)}"
+          placeholder="Soy una persona que lee antes de dormir"
+        />
+      </label>
+    `;
+  }
+
+  if (step.id === "changeTalk") {
+    return `
+      <label class="form-field question-field">
+        Lenguaje de cambio
+        <textarea
+          name="changeTalk"
+          maxlength="240"
+          placeholder="Si esto mejora 1%, notaré..."
+        >${escapeHtml(state.profile.changeTalk)}</textarea>
+      </label>
+      <div class="stage-guidance" id="stage-guidance">
+        ${renderStageGuidance(diagnoseStage(state.profile.readiness, state.profile.confidence))}
+      </div>
+    `;
+  }
+
+  if (step.id === "anchor") {
+    return `
+      <label class="form-field question-field">
+        Después de esta rutina
+        <input name="anchor" maxlength="80" value="${escapeAttr(draft.anchor)}" placeholder="servir el café" />
+      </label>
+    `;
+  }
+
+  if (step.id === "action") {
+    return `
+      <label class="form-field question-field">
+        Haré esta acción de dos minutos
+        <input name="action" maxlength="80" value="${escapeAttr(draft.action)}" placeholder="leer una página" />
+      </label>
+    `;
+  }
+
+  if (step.id === "desiredState") {
+    return `
+      <label class="form-field question-field">
+        Estado que espero sentir
+        <input name="desiredState" maxlength="72" value="${escapeAttr(draft.desiredState)}" placeholder="claridad, calma, energía" />
+      </label>
+    `;
+  }
+
+  if (step.id === "schedule") {
+    return `
+      <div class="schedule-fields">
+        <label class="form-field question-field">
+          Dificultad percibida
+          <span class="range-line">
+            <input id="difficulty" name="difficulty" type="range" min="1" max="5" value="${draft.difficulty}" />
+            <span class="range-value" id="difficulty-value">${draft.difficulty}</span>
+          </span>
+        </label>
+        <label class="form-field question-field">
+          Hora sugerida
+          <input name="time" id="habit-time" type="time" value="${escapeAttr(draft.time || getSuggestedTime(state.profile.chronotype, draft.difficulty))}" />
+        </label>
+      </div>
+    `;
+  }
+
+  if (step.id === "celebration") {
+    return `
+      <label class="form-field question-field">
+        Celebración inmediata
+        <input name="celebration" maxlength="72" value="${escapeAttr(draft.celebration)}" placeholder="respirar y decir: esto cuenta" />
+      </label>
+    `;
+  }
+
+  return `
+    <div class="review-card">
+      <div><span>Identidad</span><strong>${escapeHtml(state.profile.identity)}</strong></div>
+      <div><span>Si ocurre</span><strong>${escapeHtml(draft.anchor || "tu rutina ancla")}</strong></div>
+      <div><span>Entonces</span><strong>${escapeHtml(draft.action || "tu acción mínima")}</strong></div>
+      <div><span>Para sentir</span><strong>${escapeHtml(draft.desiredState || "el estado deseado")}</strong></div>
+      <div><span>Cierro con</span><strong>${escapeHtml(draft.celebration || "una celebración breve")}</strong></div>
+    </div>
+  `;
+}
+
+function renderOnboardingPreview(draft) {
+  return `
+    <aside class="onboarding-preview" aria-label="Vista previa del primer hábito">
+      <span>Vista previa</span>
+      <p>
+        Después de <strong>${escapeHtml(draft.anchor || "tu rutina actual")}</strong>,
+        haré <strong>${escapeHtml(draft.action || "una acción de dos minutos")}</strong>
+        para sentir <strong>${escapeHtml(draft.desiredState || "un cambio de estado")}</strong>.
+      </p>
+    </aside>
   `;
 }
 
@@ -718,6 +934,24 @@ function handleClick(event) {
   const action = button.dataset.action;
   const id = button.dataset.id;
 
+  if (action === "onboarding-next") {
+    const form = button.closest("form");
+    persistOnboardingDraft(form);
+    if (!validateCurrentOnboardingStep()) return;
+    state.profile.onboardingStep = Math.min(getOnboardingStepIndex() + 1, onboardingSteps.length - 1);
+    ui.toast = "";
+    saveState();
+    render();
+  }
+
+  if (action === "onboarding-back") {
+    persistOnboardingDraft(button.closest("form"));
+    state.profile.onboardingStep = Math.max(getOnboardingStepIndex() - 1, 0);
+    ui.toast = "";
+    saveState();
+    render();
+  }
+
   if (action === "open-form") {
     if (state.habits.length >= MAX_HABITS) {
       showToast("Ya tienes tres hábitos activos. Termina o elimina uno antes de añadir otro.");
@@ -788,26 +1022,37 @@ function handleSubmit(event) {
   event.preventDefault();
 
   if (event.target.id === "onboarding-form") {
-    const form = new FormData(event.target);
-    const readiness = Number(form.get("readiness"));
-    const confidence = Number(form.get("confidence"));
+    persistOnboardingDraft(event.target);
+    const missingStep = getFirstIncompleteOnboardingStep();
+    if (missingStep) {
+      state.profile.onboardingStep = onboardingSteps.findIndex((step) => step.id === missingStep.id);
+      saveState();
+      showToast(`Antes de crear el hábito, completa: ${missingStep.title}`);
+      render();
+      return;
+    }
+
+    const draft = getOnboardingDraft();
+    const readiness = Number(state.profile.readiness);
+    const confidence = Number(state.profile.confidence);
     const stage = diagnoseStage(readiness, confidence);
-    const identity = cleanText(form.get("identity")) || "Soy una persona que cumple lo pequeño";
+    const identity = cleanText(state.profile.identity) || "Soy una persona que cumple lo pequeño";
 
     state.profile = {
       ...state.profile,
       onboarded: true,
-      name: cleanText(form.get("name")),
+      name: cleanText(state.profile.name),
       readiness,
       confidence,
       stage,
       identity,
-      chronotype: form.get("chronotype") || "morning",
-      changeTalk: cleanText(form.get("changeTalk")),
+      chronotype: state.profile.chronotype || "morning",
+      changeTalk: cleanText(state.profile.changeTalk),
+      onboardingStep: 0,
       createdAt: state.profile.createdAt || todayKey(),
     };
 
-    const firstHabit = buildHabitFromForm(form, identity);
+    const firstHabit = buildHabitFromDraft(draft, identity);
     state.habits = [firstHabit];
     state.selectedHabitId = firstHabit.id;
     saveState();
@@ -869,6 +1114,10 @@ function handleInput(event) {
     event.target.dataset.touched = "true";
   }
 
+  if (event.target.closest("#onboarding-form")) {
+    persistOnboardingDraft(event.target.closest("form"));
+  }
+
   if (event.target.matches("[data-ease-for]")) {
     const habitId = event.target.dataset.easeFor;
     const output = document.querySelector(`#ease-${CSS.escape(habitId)}`);
@@ -880,7 +1129,13 @@ function handleChange(event) {
   if (event.target.id === "chronotype-select") {
     const difficulty = Number(document.querySelector("#difficulty")?.value || 3);
     const time = document.querySelector("#habit-time");
+    const suggestion = document.querySelector("#schedule-suggestion");
     if (time && !time.dataset.touched) time.value = getSuggestedTime(event.target.value, difficulty);
+    if (suggestion) suggestion.textContent = getScheduleSuggestion(event.target.value, difficulty);
+  }
+
+  if (event.target.closest("#onboarding-form")) {
+    persistOnboardingDraft(event.target.closest("form"));
   }
 
   if (event.target.matches("[data-ease-for]")) {
@@ -913,10 +1168,117 @@ function updateDiagnosisPreview() {
   if (guidance) guidance.innerHTML = renderStageGuidance(stage);
 }
 
+function getOnboardingDraft() {
+  const draft = state.profile.draftHabit || {};
+  const difficulty = Number(draft.difficulty || 3);
+
+  return {
+    anchor: draft.anchor || "",
+    action: draft.action || "",
+    desiredState: draft.desiredState || "",
+    time: draft.time || getSuggestedTime(state.profile.chronotype, difficulty),
+    difficulty,
+    celebration: draft.celebration || "",
+  };
+}
+
+function getOnboardingStepIndex() {
+  return clamp(Number(state.profile.onboardingStep || 0), 0, onboardingSteps.length - 1);
+}
+
+function persistOnboardingDraft(form) {
+  if (!form) return;
+
+  const formData = new FormData(form);
+  const draft = getOnboardingDraft();
+
+  if (formData.has("name")) state.profile.name = cleanText(formData.get("name"));
+  if (formData.has("chronotype")) {
+    state.profile.chronotype = formData.get("chronotype") || "morning";
+    if (!draft.time) draft.time = getSuggestedTime(state.profile.chronotype, draft.difficulty);
+  }
+  if (formData.has("readiness")) state.profile.readiness = Number(formData.get("readiness"));
+  if (formData.has("confidence")) state.profile.confidence = Number(formData.get("confidence"));
+  if (formData.has("identity")) state.profile.identity = cleanText(formData.get("identity"));
+  if (formData.has("changeTalk")) state.profile.changeTalk = cleanText(formData.get("changeTalk"));
+
+  if (formData.has("anchor")) draft.anchor = cleanText(formData.get("anchor"));
+  if (formData.has("action")) draft.action = cleanText(formData.get("action"));
+  if (formData.has("desiredState")) draft.desiredState = cleanText(formData.get("desiredState"));
+  if (formData.has("difficulty")) draft.difficulty = Number(formData.get("difficulty")) || 3;
+  if (formData.has("time")) draft.time = formData.get("time") || getSuggestedTime(state.profile.chronotype, draft.difficulty);
+  if (formData.has("celebration")) draft.celebration = cleanText(formData.get("celebration"));
+
+  state.profile.stage = diagnoseStage(state.profile.readiness, state.profile.confidence);
+  state.profile.draftHabit = draft;
+  saveState();
+}
+
+function validateCurrentOnboardingStep() {
+  const step = onboardingSteps[getOnboardingStepIndex()];
+  if (step.optional || step.id === "schedule") return true;
+
+  if (step.id === "review") {
+    const missingStep = getFirstIncompleteOnboardingStep();
+    if (!missingStep) return true;
+    state.profile.onboardingStep = onboardingSteps.findIndex((item) => item.id === missingStep.id);
+    saveState();
+    showToast(`Completa este paso antes de crear el hábito.`);
+    return false;
+  }
+
+  const value = getOnboardingStepValue(step.id);
+  if (value) return true;
+
+  showToast("Este campo ayuda a construir un bucle claro. Puedes escribir una versión pequeña.");
+  return false;
+}
+
+function getFirstIncompleteOnboardingStep() {
+  return onboardingSteps.find((step) => {
+    if (step.optional || step.id === "schedule" || step.id === "review") return false;
+    return !getOnboardingStepValue(step.id);
+  });
+}
+
+function getOnboardingStepValue(stepId) {
+  const draft = getOnboardingDraft();
+  const values = {
+    name: state.profile.name,
+    chronotype: state.profile.chronotype,
+    readiness: String(state.profile.readiness),
+    confidence: String(state.profile.confidence),
+    identity: state.profile.identity,
+    changeTalk: state.profile.changeTalk,
+    anchor: draft.anchor,
+    action: draft.action,
+    desiredState: draft.desiredState,
+    celebration: draft.celebration,
+  };
+
+  return cleanText(values[stepId] || "");
+}
+
 function buildHabitFromForm(form, fallbackIdentity) {
   return {
     id: createId(),
     ...buildHabitPayload(form, fallbackIdentity),
+    createdAt: todayKey(),
+    logs: {},
+  };
+}
+
+function buildHabitFromDraft(draft, fallbackIdentity) {
+  const difficulty = Number(draft.difficulty) || 3;
+  return {
+    id: createId(),
+    identity: fallbackIdentity,
+    anchor: cleanText(draft.anchor),
+    action: cleanText(draft.action),
+    desiredState: cleanText(draft.desiredState),
+    time: draft.time || getSuggestedTime(state.profile.chronotype, difficulty),
+    difficulty,
+    celebration: cleanText(draft.celebration) || "respirar y decir: esto cuenta",
     createdAt: todayKey(),
     logs: {},
   };

@@ -31,6 +31,8 @@ For easiest testing, you can temporarily disable email confirmation. For product
 
 If the app says `Email not confirmed`, the account exists but Supabase is waiting for the user to confirm the email address. Check inbox and spam, or use **Reenviar confirmación** from the app login panel. For fast local testing, disable **Confirm email** in the Email provider settings and turn it back on when you want production-style behavior.
 
+In **Authentication > URL Configuration**, set the site URL to the deployed app, for example `https://estbn05.github.io/habit-loop-lab/`. Add local URLs such as `http://127.0.0.1:5173/` only when testing locally.
+
 ## 3. Create The Sync Table
 
 Open **SQL Editor** and run:

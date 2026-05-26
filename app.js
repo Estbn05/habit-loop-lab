@@ -144,6 +144,7 @@ const ui = {
   onboardingStep: 0,
   showCloudPanel: false,
   reward: null,
+  urgeHabitId: null,
   toast: "",
 };
 
@@ -606,7 +607,9 @@ function renderCloudPanel() {
 }
 
 function renderDashboard() {
-  const selectedHabit = getSelectedHabit();
+  const priorityHabit = getDailyPriorityHabit();
+  const selectedHabit = priorityHabit || getSelectedHabit();
+  const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || selectedHabit;
   const completedToday = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
   const averageAutomaticity = state.habits.length
     ? Math.round(state.habits.reduce((sum, habit) => sum + getHabitStats(habit).automaticity, 0) / state.habits.length)
@@ -641,18 +644,30 @@ function renderDashboard() {
         ${ui.showCloudPanel ? renderCloudPanel() : ""}
         ${ui.showHabitForm ? renderHabitForm() : ""}
 
-        <div class="main-grid">
-          <div class="main-column">
-            ${selectedHabit ? renderDailyFocus(selectedHabit) : renderEmptyState()}
-            ${renderHabitSection()}
-            ${renderStackMap()}
+        ${selectedHabit ? renderDailyFocus(selectedHabit, riskyHabits) : renderEmptyState()}
+        ${ui.urgeHabitId && urgeHabit ? renderUrgeSurfingPanel(urgeHabit) : ""}
+
+        ${state.habits.length ? `
+          <section class="dashboard-heading" aria-labelledby="dashboard-title">
+            <div>
+              <span>Después del voto</span>
+              <h2 id="dashboard-title">Dashboard de automaticidad</h2>
+              <p>Primero acción mínima; luego señales de progreso, facilidad y transición neural.</p>
+            </div>
+          </section>
+
+          <div class="main-grid">
+            <div class="main-column">
+              ${renderHabitSection()}
+              ${renderStackMap()}
+            </div>
+            <aside class="side-column">
+              ${renderMetrics(completedToday, averageAutomaticity)}
+              ${riskyHabits.length ? renderRelapsePanel(riskyHabits) : renderStablePanel()}
+              ${renderTransitionPanel(selectedHabit)}
+            </aside>
           </div>
-          <aside class="side-column">
-            ${renderMetrics(completedToday, averageAutomaticity)}
-            ${riskyHabits.length ? renderRelapsePanel(riskyHabits) : renderStablePanel()}
-            ${renderTransitionPanel(selectedHabit)}
-          </aside>
-        </div>
+        ` : ""}
       </main>
     </div>
   `;
@@ -701,34 +716,46 @@ function renderSidebar(averageAutomaticity) {
   `;
 }
 
-function renderDailyFocus(habit) {
+function renderDailyFocus(habit, riskyHabits = []) {
   const todayStatus = getStatusForDate(habit, todayKey());
   const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
   const stats = getHabitStats(habit);
   const log = habit.logs?.[todayKey()];
   const canAdjustEase = todayStatus === "done";
+  const missStreak = getMissStreak(habit);
+  const isRepairMode = riskyHabits.some((item) => item.id === habit.id);
+  const focusLabel = isRepairMode ? "Reparación primero" : getDailyFocusLabel(habit);
+  const actionDisabled = todayStatus === "done";
 
   return `
-    <section class="panel" aria-labelledby="focus-title">
-      <div class="section-title">
-        <div>
-          <h2 id="focus-title">Bucle de hoy</h2>
-          <p>${escapeHtml(habit.identity)}</p>
+    <section class="panel daily-flow-panel" aria-labelledby="focus-title">
+      <div class="daily-flow-head">
+        <div class="identity-primer">
+          <span>${escapeHtml(focusLabel)}</span>
+          <h2 id="focus-title">${escapeHtml(habit.identity)}</h2>
+          <p>${isRepairMode
+            ? "Ayer fue información, no una sentencia. Hoy protegemos la regla de nunca fallar dos veces."
+            : "Antes de mirar métricas, emite un micro-voto por la persona que estás construyendo."
+          }</p>
         </div>
-        <span class="status-pill ${statusClass}">${getStatusLabel(todayStatus)}</span>
+        <div class="flow-status">
+          <span class="status-pill ${statusClass}">${getStatusLabel(todayStatus)}</span>
+          <strong>${completedCopy(todayStatus, missStreak)}</strong>
+        </div>
       </div>
 
       <div class="craving-spotlight">
         <span>Craving / estado anticipado</span>
         <strong>Quiero sentir ${escapeHtml(habit.desiredState)}</strong>
-        <p>Cuando aparezca la señal, imagina por 10 segundos ese cambio de estado y ejecuta solo la versión mínima.</p>
+        <p>Imagina por 10 segundos ese cambio de estado. Esa anticipación es la energía que empuja la respuesta.</p>
       </div>
 
-      <p class="implementation-line">
-        Si ocurre <strong>${escapeHtml(habit.anchor)}</strong>, entonces <strong>${escapeHtml(habit.action)}</strong>.
-      </p>
+      <div class="implementation-panel">
+        <span>Motor si-entonces</span>
+        <p>Después de <strong>${escapeHtml(habit.anchor)}</strong>, voy a <strong>${escapeHtml(habit.action)}</strong>.</p>
+      </div>
 
-      <div class="focus-grid">
+      <div class="daily-loop-grid" aria-label="Bucle neurológico de hoy">
         <div class="loop-step">
           <b>Cue / Señal</b>
           <p>Después de ${escapeHtml(habit.anchor)}</p>
@@ -747,24 +774,36 @@ function renderDailyFocus(habit) {
         </div>
       </div>
 
-      <div class="button-row" style="margin-top: 16px;">
+      <div class="action-strip" aria-label="Registro diario">
         <button
           class="button primary"
           type="button"
           data-action="log-done"
           data-id="${habit.id}"
-          ${todayStatus === "done" ? "disabled" : ""}
+          ${actionDisabled ? "disabled" : ""}
         >
-          Emitir micro-voto
+          Lo hice
+        </button>
+        <button
+          class="button secondary"
+          type="button"
+          data-action="log-minimum"
+          data-id="${habit.id}"
+          ${actionDisabled ? "disabled" : ""}
+        >
+          Hice versión mínima
         </button>
         <button
           class="button warning"
           type="button"
           data-action="log-missed"
           data-id="${habit.id}"
-          ${todayStatus === "done" ? "disabled" : ""}
+          ${actionDisabled ? "disabled" : ""}
         >
-          Registrar lapso sin culpa
+          Hoy no pude
+        </button>
+        <button class="button ghost" type="button" data-action="open-urge" data-id="${habit.id}">
+          Tengo impulso fuerte
         </button>
         ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Deshacer</button>` : ""}
       </div>
@@ -783,6 +822,48 @@ function renderDailyFocus(habit) {
         <div class="stat"><b>${stats.automaticity}%</b><span>Automaticidad</span></div>
         <div class="stat"><b>${stats.ageDays}</b><span>Días</span></div>
         <div class="stat"><b>${stats.reminderPolicy.label}</b><span>Recordatorio</span></div>
+      </div>
+    </section>
+  `;
+}
+
+function renderUrgeSurfingPanel(habit) {
+  return `
+    <section class="panel urge-panel" aria-labelledby="urge-title">
+      <div class="section-title">
+        <div>
+          <h2 id="urge-title">Urge surfing</h2>
+          <p>Observa el impulso como una ola: sube, alcanza un pico y baja sin que tengas que obedecerlo.</p>
+        </div>
+        <button class="icon-button" type="button" data-action="close-urge" aria-label="Cerrar urge surfing">×</button>
+      </div>
+
+      <div class="urge-steps">
+        <div>
+          <span>1</span>
+          <strong>Nómbralo</strong>
+          <p>“Estoy sintiendo ganas de evitar o abandonar.”</p>
+        </div>
+        <div>
+          <span>2</span>
+          <strong>Ubícalo</strong>
+          <p>Nota dónde se siente en el cuerpo durante 30 segundos.</p>
+        </div>
+        <div>
+          <span>3</span>
+          <strong>Déjalo pasar</strong>
+          <p>No luches con la ola. Respira y espera el descenso.</p>
+        </div>
+        <div>
+          <span>4</span>
+          <strong>Voto mínimo</strong>
+          <p>Cuando baje, haz solo: ${escapeHtml(habit.action)}.</p>
+        </div>
+      </div>
+
+      <div class="button-row" style="margin-top: 14px;">
+        <button class="button primary" type="button" data-action="log-minimum" data-id="${habit.id}">Registrar versión mínima</button>
+        <button class="button ghost" type="button" data-action="close-urge">El impulso bajó</button>
       </div>
     </section>
   `;
@@ -1170,6 +1251,10 @@ function handleClick(event) {
     logHabit(id, "done");
   }
 
+  if (action === "log-minimum") {
+    logHabit(id, "done", { minimum: true, ease: 2 });
+  }
+
   if (action === "log-missed") {
     logHabit(id, "missed");
   }
@@ -1180,6 +1265,16 @@ function handleClick(event) {
 
   if (action === "dismiss-reward") {
     ui.reward = null;
+    render();
+  }
+
+  if (action === "open-urge") {
+    ui.urgeHabitId = id;
+    render();
+  }
+
+  if (action === "close-urge") {
+    ui.urgeHabitId = null;
     render();
   }
 
@@ -1496,7 +1591,7 @@ function buildHabitPayload(form, fallbackIdentity = state.profile.identity) {
   };
 }
 
-function logHabit(id, status) {
+function logHabit(id, status, options = {}) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit) return;
   const previousMissStreak = getMissStreak(habit);
@@ -1504,18 +1599,25 @@ function logHabit(id, status) {
   habit.logs = habit.logs || {};
   habit.logs[todayKey()] = {
     status,
-    ease: status === "done" ? 3 : 1,
+    ease: status === "done" ? options.ease || 3 : 1,
+    minimum: Boolean(options.minimum),
     at: new Date().toISOString(),
   };
 
   state.selectedHabitId = id;
+  ui.urgeHabitId = null;
 
   if (status === "done") {
     const reward = createVariableReward(habit, previousMissStreak);
+    if (options.minimum) {
+      reward.title = "Versión mínima protegida";
+      reward.body = `${habit.identity} recibió evidencia real sin esperar motivación perfecta.`;
+      reward.prompt = "Siente el alivio de haber mantenido el ciclo.";
+    }
     ui.reward = reward;
     state.rewardHistory.unshift({ ...reward, habitId: habit.id, at: new Date().toISOString() });
     state.rewardHistory = state.rewardHistory.slice(0, 20);
-    showToast(`${habit.action}: micro-voto registrado.`);
+    showToast(options.minimum ? "Versión mínima registrada. La identidad siguió viva." : `${habit.action}: micro-voto registrado.`);
   } else {
     ui.reward = null;
     state.reflections.unshift({
@@ -1552,6 +1654,7 @@ function deleteHabit(id) {
   if (state.selectedHabitId === id) state.selectedHabitId = state.habits[0]?.id || null;
   ui.showHabitForm = false;
   ui.editingHabitId = null;
+  if (ui.urgeHabitId === id) ui.urgeHabitId = null;
   showToast("Hábito eliminado.");
   saveState();
   render();
@@ -1567,8 +1670,44 @@ function ensureSelectedHabit() {
   }
 }
 
+function getDailyPriorityHabit() {
+  if (!state.habits.length) return null;
+
+  const openHabits = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) !== "done");
+  const repairHabit = openHabits
+    .filter((habit) => getMissStreak(habit) > 0)
+    .sort((a, b) => getMissStreak(b) - getMissStreak(a))[0];
+
+  if (repairHabit) return repairHabit;
+
+  const hour = new Date().getHours();
+  const shouldPrioritizeComplex = hour < 12 || state.profile.chronotype === "morning";
+  if (shouldPrioritizeComplex) {
+    const complexHabit = openHabits
+      .filter((habit) => Number(habit.difficulty || 3) >= 4)
+      .sort((a, b) => Number(b.difficulty || 3) - Number(a.difficulty || 3))[0];
+    if (complexHabit) return complexHabit;
+  }
+
+  return getSelectedHabit();
+}
+
 function getSelectedHabit() {
   return state.habits.find((habit) => habit.id === state.selectedHabitId) || state.habits[0] || null;
+}
+
+function getDailyFocusLabel(habit) {
+  const hour = new Date().getHours();
+  if (hour < 12 && Number(habit.difficulty || 3) >= 4) return "Ventana estable de la mañana";
+  if (hour >= 18) return "Cierre sin fricción";
+  return "Recordatorio de identidad";
+}
+
+function completedCopy(status, missStreak) {
+  if (status === "done") return "Micro-voto emitido";
+  if (status === "missed") return "Dato de aprendizaje";
+  if (missStreak > 0) return "Hoy protege el mínimo";
+  return "Pendiente de acción";
 }
 
 function getHabitStats(habit) {
@@ -1605,9 +1744,10 @@ function getHabitStats(habit) {
 
 function getMissStreak(habit) {
   let streak = 0;
-  let cursor = todayKey();
+  const todayStatus = getStatusForDate(habit, todayKey());
+  let cursor = todayStatus === "done" ? "" : todayStatus === "missed" ? todayKey() : addDays(todayKey(), -1);
 
-  while (isActiveOn(habit, cursor)) {
+  while (cursor && isActiveOn(habit, cursor)) {
     const status = getStatusForDate(habit, cursor);
     if (status === "done") break;
     if (status === "missed") {

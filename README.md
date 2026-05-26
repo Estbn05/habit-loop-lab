@@ -78,10 +78,11 @@ The app is based on behavioral design concepts such as:
 1. Complete onboarding.
 2. Define the desired identity.
 3. Create one tiny if-then habit.
-4. Anticipate the desired state.
-5. Emit a daily micro-vote.
-6. If a lapse happens, repair with the minimum version.
-7. Track automaticity instead of worshiping streaks.
+4. Open the daily action screen and read the identity reminder first.
+5. Anticipate the desired state attached to the cue.
+6. Emit a daily micro-vote, choose the minimum version, or log a lapse without shame.
+7. If a strong impulse appears, use the urge-surfing panel before acting.
+8. Review the automaticity dashboard after the vote instead of starting with analytics.
 
 ## Tech Stack
 

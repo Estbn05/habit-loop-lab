@@ -1723,7 +1723,12 @@ async function initCloud() {
       render();
     });
 
-    cloud.message = cloud.user ? "Sesión activa. Sincronización disponible." : "Supabase configurado. Inicia sesión para sincronizar.";
+    if (cloud.user) {
+      cloud.message = "Sesión activa. Sincronizando nube...";
+      await syncStateAfterCloudLogin();
+    } else {
+      cloud.message = "Supabase configurado. Inicia sesión para sincronizar.";
+    }
   } catch (error) {
     console.error(error);
     cloud.client = null;
@@ -1804,18 +1809,7 @@ async function authenticateCloud({ email, password, mode }) {
       ? "Sesión activa. Revisando datos en la nube..."
       : "Cuenta creada. Revisa tu correo y confirma el email antes de entrar.";
 
-    if (cloud.user) {
-      const remote = await fetchCloudRow();
-      if (remote?.state && isLocalStateEmpty()) {
-        applyCloudState(remote.state, remote.updated_at);
-        cloud.message = "Datos descargados desde la nube.";
-      } else if (!remote?.state && !isLocalStateEmpty()) {
-        await pushStateToCloud({ silent: true });
-        cloud.message = "Primer respaldo creado en la nube.";
-      } else if (remote?.state) {
-        cloud.message = "Sesión activa. Puedes subir este dispositivo o descargar la nube.";
-      }
-    }
+    if (cloud.user) await syncStateAfterCloudLogin();
   } catch (error) {
     console.error(error);
     cloud.confirmationPending = isCloudEmailNotConfirmed(error);
@@ -1872,6 +1866,44 @@ function isCloudEmailNotConfirmed(error) {
   return /email not confirmed/i.test(error?.message || "") || error?.code === "email_not_confirmed";
 }
 
+async function syncStateAfterCloudLogin() {
+  try {
+    const remote = await fetchCloudRow();
+
+    if (remote?.state) {
+      if (isLocalStateNewerThanRemote(remote) && !isLocalStateEmpty()) {
+        if (await pushStateToCloud({ silent: true })) {
+          cloud.message = "Sesión activa. Este dispositivo tenía cambios más recientes y ya los subí a la nube.";
+        }
+        return;
+      }
+
+      applyCloudState(remote.state, remote.updated_at);
+      cloud.message = "Datos descargados automáticamente desde la nube.";
+      return;
+    }
+
+    if (!isLocalStateEmpty()) {
+      if (await pushStateToCloud({ silent: true })) {
+        cloud.message = "Primer respaldo creado en la nube.";
+      }
+      return;
+    }
+
+    cloud.message = "Sesión activa. La nube todavía no tiene datos.";
+  } catch (error) {
+    console.error(error);
+    cloud.message = error.message || "Sesión activa, pero no pude sincronizar la nube.";
+  }
+}
+
+function isLocalStateNewerThanRemote(remote) {
+  const localTime = Date.parse(state.updatedAt || "");
+  const remoteTime = Date.parse(remote?.updated_at || remote?.state?.updatedAt || "");
+
+  return Number.isFinite(localTime) && Number.isFinite(remoteTime) && localTime > remoteTime;
+}
+
 async function signOutCloud() {
   if (!cloud.client) return;
   cloud.busy = true;
@@ -1902,7 +1934,7 @@ function queueCloudAutoSync() {
 async function pushStateToCloud(options = {}) {
   if (!cloud.client || !cloud.user) {
     if (!options.silent) showToast("Inicia sesión para sincronizar.");
-    return;
+    return false;
   }
 
   if (!options.silent) {
@@ -1927,9 +1959,11 @@ async function pushStateToCloud(options = {}) {
     if (error) throw error;
     cloud.lastSync = updatedAt;
     cloud.message = "Datos guardados en la nube.";
+    return true;
   } catch (error) {
     console.error(error);
     cloud.message = error.message || "No pude subir los datos.";
+    return false;
   } finally {
     cloud.busy = false;
     if (!options.silent) render();

@@ -52,7 +52,7 @@ The app is based on behavioral design concepts such as:
 - Automaticity score based on ease, consistency, and habit age.
 - Reminder fading as habits become more automatic.
 - Local-first persistence with `localStorage`.
-- Optional Supabase authentication and cloud sync.
+- Optional Supabase authentication with automatic cloud pull after login.
 
 ## Behavioral Coherence
 

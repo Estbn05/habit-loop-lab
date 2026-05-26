@@ -82,7 +82,9 @@ The app already includes the current Project URL and publishable key. Use the co
 
 - Without login: data stays in the current browser through `localStorage`.
 - With login: changes are still saved locally and then uploaded to Supabase.
-- On a new device: sign in and click **Descargar nube** if the data does not load automatically.
+- On a new device: sign in with the same account and the app downloads the cloud state automatically.
+- If this device has newer local changes than the remote row, the app uploads those changes instead of overwriting them.
+- **Descargar nube** remains as a manual recovery action if you ever need to force a pull.
 
 ## Privacy Note
 

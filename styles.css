@@ -77,6 +77,33 @@ button {
   gap: 12px;
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sidebar-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.sidebar-toggle {
+  display: none;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+  font-weight: 850;
+  cursor: pointer;
+}
+
 .brand-mark {
   display: grid;
   width: 42px;
@@ -1299,9 +1326,47 @@ input[type="range"] {
 
 @media (max-width: 680px) {
   .workspace,
-  .sidebar,
   .onboarding-wrap {
     padding: 18px;
+  }
+
+  .sidebar {
+    gap: 0;
+    padding: 14px 18px;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-toggle::after {
+    content: "▾";
+    margin-left: 8px;
+    font-size: 0.78rem;
+  }
+
+  .sidebar.is-open .sidebar-toggle::after {
+    content: "▴";
+  }
+
+  .sidebar-content {
+    display: none;
+    gap: 14px;
+    padding-top: 14px;
+  }
+
+  .sidebar.is-open .sidebar-content {
+    display: flex;
+  }
+
+  .sidebar-section {
+    padding-top: 14px;
+  }
+
+  .sidebar-actions {
+    margin-top: 0;
   }
 
   .topbar {

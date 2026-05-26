@@ -151,6 +151,7 @@ const ui = {
   editingHabitId: null,
   onboardingStep: 0,
   dailyFlowStep: 0,
+  sidebarOpen: false,
   showCloudPanel: false,
   reward: null,
   urgeHabitId: null,
@@ -685,41 +686,53 @@ function renderDashboard() {
 function renderSidebar(averageAutomaticity) {
   const copy = stageCopy[state.profile.stage] || stageCopy.preparation;
   return `
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">HL</span>
-        <div>
-          <h1>Habit Loop Lab</h1>
-          <p>Identity-first tracker</p>
+    <aside class="sidebar ${ui.sidebarOpen ? "is-open" : ""}">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">HL</span>
+          <div>
+            <h1>Habit Loop Lab</h1>
+            <p>Identity-first tracker</p>
+          </div>
         </div>
+        <button
+          class="sidebar-toggle"
+          type="button"
+          data-action="toggle-sidebar"
+          aria-expanded="${ui.sidebarOpen ? "true" : "false"}"
+        >
+          Menú
+        </button>
       </div>
 
-      <section class="sidebar-section">
-        <h2>Identidad</h2>
-        <p class="identity-statement">${escapeHtml(state.profile.identity)}</p>
-        <span class="stage-pill">${copy.label}</span>
-        <p class="sidebar-note">${escapeHtml(copy.action)}</p>
-      </section>
+      <div class="sidebar-content">
+        <section class="sidebar-section">
+          <h2>Identidad</h2>
+          <p class="identity-statement">${escapeHtml(state.profile.identity)}</p>
+          <span class="stage-pill">${copy.label}</span>
+          <p class="sidebar-note">${escapeHtml(copy.action)}</p>
+        </section>
 
-      <section class="sidebar-section">
-        <h2>Capacidad</h2>
-        <p class="identity-statement">${state.habits.length}/${MAX_HABITS} hábitos activos</p>
-        <p class="sidebar-note">Automaticidad promedio: ${averageAutomaticity}%</p>
-      </section>
+        <section class="sidebar-section">
+          <h2>Capacidad</h2>
+          <p class="identity-statement">${state.habits.length}/${MAX_HABITS} hábitos activos</p>
+          <p class="sidebar-note">Automaticidad promedio: ${averageAutomaticity}%</p>
+        </section>
 
-      <section class="sidebar-section">
-        <h2>Regla clínica</h2>
-        <p class="sidebar-note">Una falla es información. Dos fallas seguidas activan el plan mínimo.</p>
-      </section>
+        <section class="sidebar-section">
+          <h2>Regla clínica</h2>
+          <p class="sidebar-note">Una falla es información. Dos fallas seguidas activan el plan mínimo.</p>
+        </section>
 
-      <section class="sidebar-section">
-        <h2>Nube</h2>
-        <p class="sidebar-note">${escapeHtml(getCloudStatus().label)}</p>
-        <button class="button ghost" type="button" data-action="open-cloud">Sincronizar</button>
-      </section>
+        <section class="sidebar-section">
+          <h2>Nube</h2>
+          <p class="sidebar-note">${escapeHtml(getCloudStatus().label)}</p>
+          <button class="button ghost" type="button" data-action="open-cloud">Sincronizar</button>
+        </section>
 
-      <div class="sidebar-actions">
-        <button class="button ghost" type="button" data-action="edit-profile">Ajustar perfil</button>
+        <div class="sidebar-actions">
+          <button class="button ghost" type="button" data-action="edit-profile">Ajustar perfil</button>
+        </div>
       </div>
     </aside>
   `;
@@ -1243,8 +1256,14 @@ function handleClick(event) {
     render();
   }
 
+  if (action === "toggle-sidebar") {
+    ui.sidebarOpen = !ui.sidebarOpen;
+    render();
+  }
+
   if (action === "open-cloud") {
     ui.showCloudPanel = true;
+    ui.sidebarOpen = false;
     render();
   }
 

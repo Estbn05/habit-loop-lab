@@ -52,6 +52,7 @@ The app is based on behavioral design concepts such as:
 - Automaticity score based on ease, consistency, and habit age.
 - Reminder fading as habits become more automatic.
 - Local-first persistence with `localStorage`.
+- Optional Supabase authentication and cloud sync.
 
 ## Behavioral Coherence
 
@@ -89,6 +90,7 @@ The app is based on behavioral design concepts such as:
 - JavaScript
 - Node.js static server for local development
 - `localStorage` for local-first persistence
+- Supabase for optional cross-device sync
 - GitHub Pages deployment workflow
 
 ## Run Locally
@@ -128,6 +130,7 @@ After pushing to a `main` branch:
 
 - [Product Brief](docs/PRODUCT_BRIEF.md)
 - [Screenshot Guide](docs/SCREENSHOT_GUIDE.md)
+- [Supabase Setup](docs/SUPABASE_SETUP.md)
 
 ## Portfolio Notes
 

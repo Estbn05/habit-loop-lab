@@ -1,4 +1,7 @@
 const STORAGE_KEY = "habit-loop-lab-state-v1";
+const CLOUD_CONFIG_KEY = "habit-loop-lab-cloud-config-v1";
+const CLOUD_TABLE = "habit_states";
+const SUPABASE_MODULE_URL = "https://esm.sh/@supabase/supabase-js@2.46.1";
 const MAX_HABITS = 3;
 
 const stageCopy = {
@@ -135,8 +138,20 @@ const ui = {
   showHabitForm: false,
   editingHabitId: null,
   onboardingStep: 0,
+  showCloudPanel: false,
   reward: null,
   toast: "",
+};
+
+const cloud = {
+  client: null,
+  configured: false,
+  user: null,
+  busy: false,
+  message: "",
+  lastSync: "",
+  autoTimer: null,
+  suspendAutoSync: false,
 };
 
 let reminderTimers = [];
@@ -150,6 +165,7 @@ app.addEventListener("input", handleInput);
 app.addEventListener("change", handleChange);
 
 render();
+initCloud();
 
 function loadState() {
   const fallback = {
@@ -206,7 +222,9 @@ function loadState() {
 }
 
 function saveState() {
+  state.updatedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  queueCloudAutoSync();
 }
 
 function render() {
@@ -253,6 +271,9 @@ function renderOnboarding() {
             <p id="diagnosis-body" class="muted">${getStageNudge(stage)}</p>
           </aside>
         </div>
+
+        ${renderCloudAccess("onboarding")}
+        ${ui.showCloudPanel ? renderCloudPanel() : ""}
 
         ${ui.toast ? `<div class="toast onboarding-toast" role="status">${escapeHtml(ui.toast)}</div>` : ""}
 
@@ -462,6 +483,121 @@ function renderOnboardingPreview(draft) {
   `;
 }
 
+function renderCloudAccess(context = "dashboard") {
+  const status = getCloudStatus();
+  const title = context === "onboarding" ? "¿Ya tienes datos en otro dispositivo?" : "Nube opcional";
+  const body = context === "onboarding"
+    ? "Inicia sesión para descargar tus hábitos del computador o del celular."
+    : "Sincroniza manualmente o deja que la app guarde cambios cuando haya sesión activa.";
+
+  return `
+    <section class="cloud-access ${context === "onboarding" ? "cloud-access-onboarding" : ""}">
+      <div>
+        <span class="status-pill ${status.className}">${status.label}</span>
+        <h2>${title}</h2>
+        <p>${body}</p>
+        ${cloud.message ? `<p class="fine-print">${escapeHtml(cloud.message)}</p>` : ""}
+      </div>
+      <button class="button secondary" type="button" data-action="open-cloud">Sincronizar</button>
+    </section>
+  `;
+}
+
+function renderCloudPanel() {
+  const config = getCloudConfig();
+  const status = getCloudStatus();
+
+  if (!cloud.configured) {
+    return `
+      <section class="panel cloud-panel" aria-labelledby="cloud-title">
+        <div class="section-title">
+          <div>
+            <h2 id="cloud-title">Conectar Supabase</h2>
+            <p>Pega los datos públicos de tu proyecto. Se guardan solo en este navegador.</p>
+          </div>
+          <button class="icon-button" type="button" data-action="close-cloud" aria-label="Cerrar sincronización">×</button>
+        </div>
+
+        <form id="cloud-config-form">
+          <div class="form-grid">
+            <label class="form-field full">
+              Project URL
+              <input name="url" type="url" required placeholder="https://xxxx.supabase.co" value="${escapeAttr(config.url)}" />
+            </label>
+            <label class="form-field full">
+              Anon public key
+              <textarea name="anonKey" required placeholder="eyJhbGciOiJIUzI1NiIs...">${escapeHtml(config.anonKey)}</textarea>
+            </label>
+          </div>
+          <div class="form-footer">
+            <p class="fine-print">La anon key es pública. Las reglas RLS de Supabase protegen los datos por usuario.</p>
+            <button class="button primary" type="submit" ${cloud.busy ? "disabled" : ""}>Guardar configuración</button>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
+  if (!cloud.user) {
+    return `
+      <section class="panel cloud-panel" aria-labelledby="cloud-title">
+        <div class="section-title">
+          <div>
+            <h2 id="cloud-title">Iniciar sesión</h2>
+            <p>Usa el mismo correo y contraseña en computador y celular para compartir tus hábitos.</p>
+          </div>
+          <button class="icon-button" type="button" data-action="close-cloud" aria-label="Cerrar sincronización">×</button>
+        </div>
+
+        <form id="cloud-auth-form">
+          <div class="form-grid">
+            <label class="form-field">
+              Email
+              <input name="email" type="email" autocomplete="email" required placeholder="tu@email.com" />
+            </label>
+            <label class="form-field">
+              Contraseña
+              <input name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="mínimo 6 caracteres" />
+            </label>
+          </div>
+          <div class="form-footer">
+            <p class="fine-print">${escapeHtml(cloud.message || "La cuenta es opcional. Sin sesión, tus datos siguen locales.")}</p>
+            <div class="wizard-actions">
+              <button class="button ghost" type="button" data-action="cloud-clear-config" ${cloud.busy ? "disabled" : ""}>Cambiar Supabase</button>
+              <button class="button secondary" type="submit" data-auth-mode="signup" ${cloud.busy ? "disabled" : ""}>Crear cuenta</button>
+              <button class="button primary" type="submit" data-auth-mode="login" ${cloud.busy ? "disabled" : ""}>Entrar</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="panel cloud-panel" aria-labelledby="cloud-title">
+      <div class="section-title">
+        <div>
+          <h2 id="cloud-title">Sincronización activa</h2>
+          <p>${escapeHtml(cloud.user.email || "Sesión iniciada")}</p>
+        </div>
+        <button class="icon-button" type="button" data-action="close-cloud" aria-label="Cerrar sincronización">×</button>
+      </div>
+
+      <div class="cloud-status-card">
+        <span class="status-pill ${status.className}">${status.label}</span>
+        <p>${escapeHtml(cloud.message || "Tus cambios locales se guardan automáticamente en la nube.")}</p>
+        ${cloud.lastSync ? `<p class="fine-print">Última sincronización: ${escapeHtml(formatDateTime(cloud.lastSync))}</p>` : ""}
+      </div>
+
+      <div class="button-row">
+        <button class="button primary" type="button" data-action="cloud-push" ${cloud.busy ? "disabled" : ""}>Subir este dispositivo</button>
+        <button class="button secondary" type="button" data-action="cloud-pull" ${cloud.busy ? "disabled" : ""}>Descargar nube</button>
+        <button class="button ghost" type="button" data-action="cloud-logout" ${cloud.busy ? "disabled" : ""}>Cerrar sesión</button>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard() {
   const selectedHabit = getSelectedHabit();
   const completedToday = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
@@ -495,6 +631,7 @@ function renderDashboard() {
 
         ${ui.toast ? `<div class="toast" role="status">${escapeHtml(ui.toast)}</div>` : ""}
         ${ui.reward ? renderReward(ui.reward) : ""}
+        ${ui.showCloudPanel ? renderCloudPanel() : ""}
         ${ui.showHabitForm ? renderHabitForm() : ""}
 
         <div class="main-grid">
@@ -542,6 +679,12 @@ function renderSidebar(averageAutomaticity) {
       <section class="sidebar-section">
         <h2>Regla clínica</h2>
         <p class="sidebar-note">Una falla es información. Dos fallas seguidas activan el plan mínimo.</p>
+      </section>
+
+      <section class="sidebar-section">
+        <h2>Nube</h2>
+        <p class="sidebar-note">${escapeHtml(getCloudStatus().label)}</p>
+        <button class="button ghost" type="button" data-action="open-cloud">Sincronizar</button>
       </section>
 
       <div class="sidebar-actions">
@@ -952,6 +1095,32 @@ function handleClick(event) {
     render();
   }
 
+  if (action === "open-cloud") {
+    ui.showCloudPanel = true;
+    render();
+  }
+
+  if (action === "close-cloud") {
+    ui.showCloudPanel = false;
+    render();
+  }
+
+  if (action === "cloud-clear-config") {
+    clearCloudConfig();
+  }
+
+  if (action === "cloud-logout") {
+    signOutCloud();
+  }
+
+  if (action === "cloud-push") {
+    pushStateToCloud();
+  }
+
+  if (action === "cloud-pull") {
+    pullStateFromCloud();
+  }
+
   if (action === "open-form") {
     if (state.habits.length >= MAX_HABITS) {
       showToast("Ya tienes tres hábitos activos. Termina o elimina uno antes de añadir otro.");
@@ -1018,7 +1187,7 @@ function handleClick(event) {
   }
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
   if (event.target.id === "onboarding-form") {
@@ -1058,6 +1227,25 @@ function handleSubmit(event) {
     saveState();
     showToast("Primer micro-voto creado. Hoy solo necesitas la versión mínima.");
     render();
+  }
+
+  if (event.target.id === "cloud-config-form") {
+    const form = new FormData(event.target);
+    await saveCloudConfig({
+      url: cleanText(form.get("url")),
+      anonKey: cleanText(form.get("anonKey")),
+    });
+  }
+
+  if (event.target.id === "cloud-auth-form") {
+    const submitter = event.submitter;
+    const mode = submitter?.dataset.authMode || "login";
+    const form = new FormData(event.target);
+    await authenticateCloud({
+      email: cleanText(form.get("email")),
+      password: String(form.get("password") || ""),
+      mode,
+    });
   }
 
   if (event.target.id === "habit-form") {
@@ -1483,6 +1671,251 @@ function createVariableReward(habit, repairedMissStreak = 0) {
     : rewards[Math.floor(Math.random() * rewards.length)];
 }
 
+async function initCloud() {
+  const config = getCloudConfig();
+  cloud.configured = Boolean(config.url && config.anonKey);
+
+  if (!cloud.configured) {
+    cloud.client = null;
+    cloud.user = null;
+    cloud.message = "Datos locales en este dispositivo.";
+    render();
+    return;
+  }
+
+  cloud.busy = true;
+  cloud.message = "Conectando con Supabase...";
+  render();
+
+  try {
+    const { createClient } = await import(SUPABASE_MODULE_URL);
+    cloud.client = createClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
+
+    const { data, error } = await cloud.client.auth.getSession();
+    if (error) throw error;
+
+    cloud.user = data.session?.user || null;
+    cloud.client.auth.onAuthStateChange((_event, session) => {
+      cloud.user = session?.user || null;
+      cloud.message = cloud.user ? "Sesión activa. Sincronización disponible." : "Sesión cerrada.";
+      render();
+    });
+
+    cloud.message = cloud.user ? "Sesión activa. Sincronización disponible." : "Supabase configurado. Inicia sesión para sincronizar.";
+  } catch (error) {
+    console.error(error);
+    cloud.client = null;
+    cloud.user = null;
+    cloud.message = "No pude conectar con Supabase. Revisa URL y anon key.";
+  } finally {
+    cloud.busy = false;
+    render();
+  }
+}
+
+function getCloudConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+async function saveCloudConfig(config) {
+  if (!config.url || !config.anonKey) {
+    showToast("Faltan la URL y la anon key de Supabase.");
+    return;
+  }
+
+  localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(config));
+  cloud.message = "Configuración guardada.";
+  await initCloud();
+}
+
+async function clearCloudConfig() {
+  if (cloud.client) await cloud.client.auth.signOut();
+  localStorage.removeItem(CLOUD_CONFIG_KEY);
+  cloud.client = null;
+  cloud.configured = false;
+  cloud.user = null;
+  cloud.lastSync = "";
+  cloud.message = "Configuración de nube eliminada.";
+  render();
+}
+
+async function authenticateCloud({ email, password, mode }) {
+  if (!cloud.client) {
+    showToast("Primero configura Supabase.");
+    return;
+  }
+
+  if (!email || password.length < 6) {
+    showToast("Usa un email válido y una contraseña de mínimo 6 caracteres.");
+    return;
+  }
+
+  cloud.busy = true;
+  cloud.message = mode === "signup" ? "Creando cuenta..." : "Iniciando sesión...";
+  render();
+
+  try {
+    const result = mode === "signup"
+      ? await cloud.client.auth.signUp({ email, password })
+      : await cloud.client.auth.signInWithPassword({ email, password });
+
+    if (result.error) throw result.error;
+
+    cloud.user = result.data.session?.user || null;
+    cloud.message = cloud.user
+      ? "Sesión activa. Revisando datos en la nube..."
+      : "Cuenta creada. Revisa tu correo si Supabase pide confirmación.";
+
+    if (cloud.user) {
+      const remote = await fetchCloudRow();
+      if (remote?.state && isLocalStateEmpty()) {
+        applyCloudState(remote.state, remote.updated_at);
+        cloud.message = "Datos descargados desde la nube.";
+      } else if (!remote?.state && !isLocalStateEmpty()) {
+        await pushStateToCloud({ silent: true });
+        cloud.message = "Primer respaldo creado en la nube.";
+      } else if (remote?.state) {
+        cloud.message = "Sesión activa. Puedes subir este dispositivo o descargar la nube.";
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    cloud.message = error.message || "No pude iniciar sesión.";
+  } finally {
+    cloud.busy = false;
+    render();
+  }
+}
+
+async function signOutCloud() {
+  if (!cloud.client) return;
+  cloud.busy = true;
+  render();
+
+  const { error } = await cloud.client.auth.signOut();
+  if (error) {
+    cloud.message = error.message;
+  } else {
+    cloud.user = null;
+    cloud.message = "Sesión cerrada. Los datos siguen guardados localmente.";
+  }
+
+  cloud.busy = false;
+  render();
+}
+
+function queueCloudAutoSync() {
+  if (cloud.suspendAutoSync || !cloud.client || !cloud.user) return;
+  window.clearTimeout(cloud.autoTimer);
+  cloud.autoTimer = window.setTimeout(() => {
+    pushStateToCloud({ silent: true });
+  }, 1400);
+}
+
+async function pushStateToCloud(options = {}) {
+  if (!cloud.client || !cloud.user) {
+    if (!options.silent) showToast("Inicia sesión para sincronizar.");
+    return;
+  }
+
+  if (!options.silent) {
+    cloud.busy = true;
+    cloud.message = "Subiendo este dispositivo...";
+    render();
+  }
+
+  try {
+    const updatedAt = new Date().toISOString();
+    const { error } = await cloud.client
+      .from(CLOUD_TABLE)
+      .upsert(
+        {
+          user_id: cloud.user.id,
+          state,
+          updated_at: updatedAt,
+        },
+        { onConflict: "user_id" },
+      );
+
+    if (error) throw error;
+    cloud.lastSync = updatedAt;
+    cloud.message = "Datos guardados en la nube.";
+  } catch (error) {
+    console.error(error);
+    cloud.message = error.message || "No pude subir los datos.";
+  } finally {
+    cloud.busy = false;
+    if (!options.silent) render();
+  }
+}
+
+async function pullStateFromCloud(options = {}) {
+  if (!cloud.client || !cloud.user) {
+    if (!options.silent) showToast("Inicia sesión para sincronizar.");
+    return;
+  }
+
+  cloud.busy = true;
+  cloud.message = "Descargando nube...";
+  render();
+
+  try {
+    const remote = await fetchCloudRow();
+    if (!remote?.state) {
+      cloud.message = options.silentIfEmpty ? "No hay datos remotos todavía." : "La nube todavía no tiene datos.";
+      return;
+    }
+
+    applyCloudState(remote.state, remote.updated_at);
+    cloud.message = "Datos descargados desde la nube.";
+  } catch (error) {
+    console.error(error);
+    cloud.message = error.message || "No pude descargar la nube.";
+  } finally {
+    cloud.busy = false;
+    render();
+  }
+}
+
+async function fetchCloudRow() {
+  const { data, error } = await cloud.client
+    .from(CLOUD_TABLE)
+    .select("state, updated_at")
+    .eq("user_id", cloud.user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+function applyCloudState(remoteState, updatedAt) {
+  cloud.suspendAutoSync = true;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteState));
+  state = loadState();
+  cloud.lastSync = updatedAt || "";
+  cloud.suspendAutoSync = false;
+}
+
+function isLocalStateEmpty() {
+  return !state.profile.onboarded && state.habits.length === 0;
+}
+
+function getCloudStatus() {
+  if (cloud.busy) return { label: "Sincronizando", className: "open" };
+  if (cloud.user) return { label: "Nube conectada", className: "done" };
+  if (cloud.configured) return { label: "Nube configurada", className: "open" };
+  return { label: "Solo local", className: "missed" };
+}
+
 async function requestNotifications() {
   if (!("Notification" in window)) {
     showToast("Este navegador no soporta notificaciones locales.");
@@ -1682,6 +2115,13 @@ function formatDate(dateKey) {
     day: "numeric",
     month: "long",
   }).format(parseDateKey(dateKey));
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("es-CO", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function getDelayUntil(time) {

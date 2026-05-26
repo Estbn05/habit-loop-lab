@@ -78,7 +78,7 @@ The app is based on behavioral design concepts such as:
 1. Complete onboarding.
 2. Define the desired identity.
 3. Create one tiny if-then habit.
-4. Open the daily action screen and read the identity reminder first.
+4. Move through the daily action flow one step at a time: identity, craving, plan, registration, signals.
 5. Anticipate the desired state attached to the cue.
 6. Emit a daily micro-vote, choose the minimum version, or log a lapse without shame.
 7. If a strong impulse appears, use the urge-surfing panel before acting.

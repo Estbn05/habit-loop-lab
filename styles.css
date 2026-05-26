@@ -409,7 +409,9 @@ select:focus-visible {
 }
 
 .identity-primer span,
+.daily-step-progress span,
 .implementation-panel span,
+.step-copy span,
 .dashboard-heading span {
   color: var(--teal-dark);
   font-size: 0.78rem;
@@ -418,7 +420,23 @@ select:focus-visible {
   letter-spacing: 0.07em;
 }
 
-.identity-primer h2 {
+.daily-step-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.daily-step-progress h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.daily-step-progress p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.identity-primer h3,
+.step-copy h3 {
   max-width: 820px;
   margin: 0;
   font-size: 2rem;
@@ -440,6 +458,98 @@ select:focus-visible {
   justify-items: end;
   gap: 10px;
   text-align: right;
+}
+
+.daily-step-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.daily-step-tabs button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.daily-step-tabs button.active {
+  color: var(--teal-dark);
+  border-color: rgba(13, 124, 102, 0.28);
+  background: var(--green-soft);
+}
+
+.daily-step-card {
+  display: grid;
+  gap: 14px;
+  min-height: 270px;
+  align-content: center;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+}
+
+.daily-step-card.craving-spotlight {
+  margin-bottom: 0;
+}
+
+.step-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.step-copy h3 {
+  font-size: 1.45rem;
+}
+
+.step-copy p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.compact-loop {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compact-loop div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.compact-loop b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.compact-loop p {
+  margin: 0;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.daily-flow-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .implementation-panel {
@@ -1175,6 +1285,7 @@ input[type="range"] {
 
   .focus-grid,
   .daily-loop-grid,
+  .compact-loop,
   .urge-steps,
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1200,6 +1311,7 @@ input[type="range"] {
 
   .topbar-actions,
   .action-strip,
+  .daily-flow-actions,
   .button-row,
   .habit-actions,
   .inline-actions,
@@ -1211,6 +1323,7 @@ input[type="range"] {
 
   .button,
   .action-strip .button,
+  .daily-flow-actions .button,
   .topbar-actions .button,
   .cloud-access .button,
   .form-footer .button,
@@ -1226,12 +1339,33 @@ input[type="range"] {
   .form-grid,
   .focus-grid,
   .daily-loop-grid,
+  .compact-loop,
   .urge-steps,
   .metrics-grid,
   .segmented,
   .schedule-fields,
   .review-card {
     grid-template-columns: 1fr;
+  }
+
+  .daily-step-tabs {
+    grid-template-columns: repeat(5, minmax(92px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .daily-step-card {
+    min-height: 250px;
+    padding: 16px;
+  }
+
+  .identity-primer h3,
+  .step-copy h3 {
+    font-size: 1.5rem;
+  }
+
+  .daily-flow-actions {
+    flex-direction: column;
   }
 
   .stats-row {

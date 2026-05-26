@@ -2,14 +2,24 @@
 
 Habit Loop Lab is local-first. Supabase is optional and only needed when you want the same data on multiple devices.
 
-## 1. Create A Supabase Project
+## Current Project
+
+The app is already configured with this Supabase project:
+
+```text
+https://rzpdqrcfqxpgpjstfxau.supabase.co
+```
+
+The client uses a Supabase publishable key in the frontend. That is expected for browser apps. Never add a service role key to this repository.
+
+## 1. Create Or Open The Supabase Project
 
 1. Go to [Supabase](https://supabase.com).
-2. Create a new project.
+2. Open the project listed above, or create a new one if you want to replace it.
 3. Open **Project Settings > API**.
-4. Copy:
+4. If you replace the project, copy:
    - Project URL
-   - anon public key
+   - anon public key or publishable key
 
 Those values are public client-side values. Do not use the service role key in the app.
 
@@ -59,10 +69,10 @@ using (auth.uid() = user_id);
 In Habit Loop Lab:
 
 1. Click **Sincronizar**.
-2. Paste your Supabase Project URL.
-3. Paste your anon public key.
-4. Create an account or sign in.
-5. Use the same account on your phone and computer.
+2. Create an account or sign in.
+3. Use the same account on your phone and computer.
+
+The app already includes the current Project URL and publishable key. Use the configuration form only if you intentionally move to another Supabase project.
 
 ## Sync Behavior
 

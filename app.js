@@ -2,6 +2,10 @@ const STORAGE_KEY = "habit-loop-lab-state-v1";
 const CLOUD_CONFIG_KEY = "habit-loop-lab-cloud-config-v1";
 const CLOUD_TABLE = "habit_states";
 const SUPABASE_MODULE_URL = "https://esm.sh/@supabase/supabase-js@2.46.1";
+const DEFAULT_CLOUD_CONFIG = {
+  url: "https://rzpdqrcfqxpgpjstfxau.supabase.co",
+  anonKey: "sb_publishable_4S7QCVJjbtMGd8-RghkzLA_UYfTAPld",
+};
 const MAX_HABITS = 3;
 
 const stageCopy = {
@@ -544,7 +548,7 @@ function renderCloudPanel() {
         <div class="section-title">
           <div>
             <h2 id="cloud-title">Iniciar sesión</h2>
-            <p>Usa el mismo correo y contraseña en computador y celular para compartir tus hábitos.</p>
+            <p>Supabase ya está configurado. Usa el mismo correo y contraseña en computador y celular.</p>
           </div>
           <button class="icon-button" type="button" data-action="close-cloud" aria-label="Cerrar sincronización">×</button>
         </div>
@@ -563,7 +567,7 @@ function renderCloudPanel() {
           <div class="form-footer">
             <p class="fine-print">${escapeHtml(cloud.message || "La cuenta es opcional. Sin sesión, tus datos siguen locales.")}</p>
             <div class="wizard-actions">
-              <button class="button ghost" type="button" data-action="cloud-clear-config" ${cloud.busy ? "disabled" : ""}>Cambiar Supabase</button>
+              <button class="button ghost" type="button" data-action="cloud-clear-config" ${cloud.busy ? "disabled" : ""}>Restaurar Supabase</button>
               <button class="button secondary" type="submit" data-auth-mode="signup" ${cloud.busy ? "disabled" : ""}>Crear cuenta</button>
               <button class="button primary" type="submit" data-auth-mode="login" ${cloud.busy ? "disabled" : ""}>Entrar</button>
             </div>
@@ -1720,9 +1724,13 @@ async function initCloud() {
 
 function getCloudConfig() {
   try {
-    return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY) || "{}");
+    const saved = JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY) || "{}");
+    return {
+      ...DEFAULT_CLOUD_CONFIG,
+      ...saved,
+    };
   } catch {
-    return {};
+    return DEFAULT_CLOUD_CONFIG;
   }
 }
 
@@ -1741,11 +1749,11 @@ async function clearCloudConfig() {
   if (cloud.client) await cloud.client.auth.signOut();
   localStorage.removeItem(CLOUD_CONFIG_KEY);
   cloud.client = null;
-  cloud.configured = false;
+  cloud.configured = Boolean(DEFAULT_CLOUD_CONFIG.url && DEFAULT_CLOUD_CONFIG.anonKey);
   cloud.user = null;
   cloud.lastSync = "";
-  cloud.message = "Configuración de nube eliminada.";
-  render();
+  cloud.message = "Configuración restaurada al proyecto Supabase por defecto.";
+  await initCloud();
 }
 
 async function authenticateCloud({ email, password, mode }) {

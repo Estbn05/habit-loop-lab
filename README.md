@@ -93,6 +93,8 @@ The app is based on behavioral design concepts such as:
 - Supabase for optional cross-device sync
 - GitHub Pages deployment workflow
 
+The published app is already wired to the configured Supabase project. To enable real sync, run the SQL in [Supabase Setup](docs/SUPABASE_SETUP.md).
+
 ## Run Locally
 
 ```bash

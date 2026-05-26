@@ -153,6 +153,8 @@ const cloud = {
   user: null,
   busy: false,
   message: "",
+  pendingEmail: "",
+  confirmationPending: false,
   lastSync: "",
   autoTimer: null,
   suspendAutoSync: false,
@@ -557,7 +559,7 @@ function renderCloudPanel() {
           <div class="form-grid">
             <label class="form-field">
               Email
-              <input name="email" type="email" autocomplete="email" required placeholder="tu@email.com" />
+              <input name="email" type="email" autocomplete="email" required placeholder="tu@email.com" value="${escapeHtml(cloud.pendingEmail)}" />
             </label>
             <label class="form-field">
               Contraseña
@@ -568,6 +570,7 @@ function renderCloudPanel() {
             <p class="fine-print">${escapeHtml(cloud.message || "La cuenta es opcional. Sin sesión, tus datos siguen locales.")}</p>
             <div class="wizard-actions">
               <button class="button ghost" type="button" data-action="cloud-clear-config" ${cloud.busy ? "disabled" : ""}>Restaurar Supabase</button>
+              ${cloud.confirmationPending && cloud.pendingEmail ? `<button class="button ghost" type="button" data-action="cloud-resend-confirmation" ${cloud.busy ? "disabled" : ""}>Reenviar confirmación</button>` : ""}
               <button class="button secondary" type="submit" data-auth-mode="signup" ${cloud.busy ? "disabled" : ""}>Crear cuenta</button>
               <button class="button primary" type="submit" data-auth-mode="login" ${cloud.busy ? "disabled" : ""}>Entrar</button>
             </div>
@@ -1111,6 +1114,10 @@ function handleClick(event) {
 
   if (action === "cloud-clear-config") {
     clearCloudConfig();
+  }
+
+  if (action === "cloud-resend-confirmation") {
+    resendCloudConfirmation();
   }
 
   if (action === "cloud-logout") {
@@ -1682,6 +1689,8 @@ async function initCloud() {
   if (!cloud.configured) {
     cloud.client = null;
     cloud.user = null;
+    cloud.pendingEmail = "";
+    cloud.confirmationPending = false;
     cloud.message = "Datos locales en este dispositivo.";
     render();
     return;
@@ -1706,6 +1715,10 @@ async function initCloud() {
     cloud.user = data.session?.user || null;
     cloud.client.auth.onAuthStateChange((_event, session) => {
       cloud.user = session?.user || null;
+      if (cloud.user) {
+        cloud.pendingEmail = "";
+        cloud.confirmationPending = false;
+      }
       cloud.message = cloud.user ? "Sesión activa. Sincronización disponible." : "Sesión cerrada.";
       render();
     });
@@ -1715,6 +1728,8 @@ async function initCloud() {
     console.error(error);
     cloud.client = null;
     cloud.user = null;
+    cloud.pendingEmail = "";
+    cloud.confirmationPending = false;
     cloud.message = "No pude conectar con Supabase. Revisa URL y anon key.";
   } finally {
     cloud.busy = false;
@@ -1751,6 +1766,8 @@ async function clearCloudConfig() {
   cloud.client = null;
   cloud.configured = Boolean(DEFAULT_CLOUD_CONFIG.url && DEFAULT_CLOUD_CONFIG.anonKey);
   cloud.user = null;
+  cloud.pendingEmail = "";
+  cloud.confirmationPending = false;
   cloud.lastSync = "";
   cloud.message = "Configuración restaurada al proyecto Supabase por defecto.";
   await initCloud();
@@ -1768,6 +1785,8 @@ async function authenticateCloud({ email, password, mode }) {
   }
 
   cloud.busy = true;
+  cloud.pendingEmail = email;
+  cloud.confirmationPending = false;
   cloud.message = mode === "signup" ? "Creando cuenta..." : "Iniciando sesión...";
   render();
 
@@ -1779,9 +1798,11 @@ async function authenticateCloud({ email, password, mode }) {
     if (result.error) throw result.error;
 
     cloud.user = result.data.session?.user || null;
+    cloud.confirmationPending = !cloud.user;
+    if (cloud.user) cloud.pendingEmail = "";
     cloud.message = cloud.user
       ? "Sesión activa. Revisando datos en la nube..."
-      : "Cuenta creada. Revisa tu correo si Supabase pide confirmación.";
+      : "Cuenta creada. Revisa tu correo y confirma el email antes de entrar.";
 
     if (cloud.user) {
       const remote = await fetchCloudRow();
@@ -1797,11 +1818,58 @@ async function authenticateCloud({ email, password, mode }) {
     }
   } catch (error) {
     console.error(error);
-    cloud.message = error.message || "No pude iniciar sesión.";
+    cloud.confirmationPending = isCloudEmailNotConfirmed(error);
+    cloud.message = formatCloudAuthError(error);
   } finally {
     cloud.busy = false;
     render();
   }
+}
+
+async function resendCloudConfirmation() {
+  if (!cloud.client || !cloud.pendingEmail) {
+    showToast("Escribe el email de la cuenta para reenviar la confirmación.");
+    return;
+  }
+
+  cloud.busy = true;
+  cloud.message = "Reenviando correo de confirmación...";
+  render();
+
+  try {
+    const { error } = await cloud.client.auth.resend({
+      type: "signup",
+      email: cloud.pendingEmail,
+    });
+
+    if (error) throw error;
+
+    cloud.confirmationPending = true;
+    cloud.message = `Correo de confirmación reenviado a ${cloud.pendingEmail}. Revisa entrada y spam.`;
+  } catch (error) {
+    console.error(error);
+    cloud.message = error.message || "No pude reenviar la confirmación.";
+  } finally {
+    cloud.busy = false;
+    render();
+  }
+}
+
+function formatCloudAuthError(error) {
+  if (isCloudEmailNotConfirmed(error)) {
+    return "Tu cuenta existe, pero falta confirmar el email. Revisa tu correo o reenvía la confirmación desde aquí.";
+  }
+
+  const message = error?.message || "";
+  if (/invalid login credentials/i.test(message)) {
+    return "No pude entrar con ese email y contraseña. Revisa los datos o crea la cuenta.";
+  }
+
+  return message || "No pude iniciar sesión.";
+}
+
+function isCloudEmailNotConfirmed(error) {
+  return /email not confirmed/i.test(error?.message || "") || error?.code === "email_not_confirmed";
 }
 
 async function signOutCloud() {
@@ -1814,6 +1882,8 @@ async function signOutCloud() {
     cloud.message = error.message;
   } else {
     cloud.user = null;
+    cloud.pendingEmail = "";
+    cloud.confirmationPending = false;
     cloud.message = "Sesión cerrada. Los datos siguen guardados localmente.";
   }
 

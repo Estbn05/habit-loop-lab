@@ -29,6 +29,8 @@ In **Authentication > Providers**, make sure **Email** is enabled.
 
 For easiest testing, you can temporarily disable email confirmation. For production-style behavior, keep confirmation enabled.
 
+If the app says `Email not confirmed`, the account exists but Supabase is waiting for the user to confirm the email address. Check inbox and spam, or use **Reenviar confirmación** from the app login panel. For fast local testing, disable **Confirm email** in the Email provider settings and turn it back on when you want production-style behavior.
+
 ## 3. Create The Sync Table
 
 Open **SQL Editor** and run:

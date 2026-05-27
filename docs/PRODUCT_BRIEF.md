@@ -30,8 +30,9 @@ Habit Loop Lab is designed around a different thesis: a useful tracker should he
 3. User defines an identity statement.
 4. User creates one if-then habit plan.
 5. User sees the daily cue, craving, response, and reward loop.
-6. User emits a micro-vote or records a lapse.
-7. App adapts feedback, automaticity, relapse support, and reminders.
+6. User logs from a compact action card, while deeper explanations stay collapsed by default.
+7. User emits a micro-vote or records a lapse.
+8. App adapts feedback, automaticity, relapse support, and reminders.
 
 ## Portfolio Angle
 

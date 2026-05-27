@@ -42,7 +42,8 @@ The app is based on behavioral design concepts such as:
 - Identity statement for each habit.
 - Mandatory if-then planning: "After X, I will Y."
 - Habit limit of three active habits.
-- Daily loop focused on the anticipated state change.
+- Compact daily action card focused on identity, plan, anticipated state, and one-tap logging.
+- Collapsible explanations for users who want the behavioral reasoning without adding daily friction.
 - One-tap micro-vote logging.
 - Lapse logging without shame.
 - Never-miss-twice recovery panel.
@@ -78,9 +79,9 @@ The app is based on behavioral design concepts such as:
 1. Complete onboarding.
 2. Define the desired identity.
 3. Create one tiny if-then habit.
-4. Move through the daily action flow one step at a time: identity, craving, plan, registration, signals.
-5. Anticipate the desired state attached to the cue.
-6. Emit a daily micro-vote, choose the minimum version, or log a lapse without shame.
+4. Use the compact daily card: identity, if-then plan, anticipated state, and registration.
+5. Emit a daily micro-vote, choose the minimum version, or log a lapse without shame.
+6. Open the optional details only when you want the behavioral reasoning, full loop, or automaticity signals.
 7. If a strong impulse appears, use the urge-surfing panel before acting.
 8. Review the automaticity dashboard after the vote instead of starting with analytics.
 

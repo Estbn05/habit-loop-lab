@@ -750,20 +750,18 @@ function renderDailyFocus(habit, riskyHabits = []) {
   const missStreak = getMissStreak(habit);
   const isRepairMode = riskyHabits.some((item) => item.id === habit.id);
   const focusLabel = isRepairMode ? "Reparación primero" : getDailyFocusLabel(habit);
-  const stepIndex = clamp(Number(ui.dailyFlowStep || 0), 0, dailyFlowSteps.length - 1);
-  const step = dailyFlowSteps[stepIndex];
-  const progress = Math.round(((stepIndex + 1) / dailyFlowSteps.length) * 100);
+  const actionDisabled = todayStatus === "done";
 
   return `
-    <section class="panel daily-flow-panel" aria-labelledby="focus-title">
-      <div class="daily-flow-head">
+    <section class="panel daily-flow-panel compact-daily-panel" aria-labelledby="daily-action-title">
+      <div class="compact-daily-top">
         <div class="daily-step-progress">
-          <span>Flujo diario</span>
-          <h2 id="focus-title">${escapeHtml(step.label)}</h2>
-          <p>Paso ${stepIndex + 1} de ${dailyFlowSteps.length}. Una pieza a la vez.</p>
-          <div class="progress-shell" aria-label="Progreso del flujo diario ${progress}%">
-            <div class="progress-bar" style="--value: ${progress}%"></div>
-          </div>
+          <span>${escapeHtml(focusLabel)}</span>
+          <h2 id="daily-action-title">${escapeHtml(habit.identity)}</h2>
+          <p>${isRepairMode
+            ? "Ayer fue información, no una sentencia. Hoy basta una reparación mínima para proteger la regla de nunca fallar dos veces."
+            : "Hoy solo necesitas emitir un micro-voto. La explicación queda debajo si quieres revisarla."
+          }</p>
         </div>
         <div class="flow-status">
           <span class="status-pill ${statusClass}">${getStatusLabel(todayStatus)}</span>
@@ -771,32 +769,84 @@ function renderDailyFocus(habit, riskyHabits = []) {
         </div>
       </div>
 
-      <div class="daily-step-tabs" aria-label="Pasos del flujo diario">
-        ${dailyFlowSteps.map((item, index) => `
-          <button
-            class="${index === stepIndex ? "active" : ""}"
-            type="button"
-            data-action="daily-flow-step"
-            data-step="${index}"
-            aria-current="${index === stepIndex ? "step" : "false"}"
-          >
-            ${escapeHtml(item.label)}
+      <article class="daily-action-card">
+        <div class="daily-action-main">
+          <span>Plan de hoy</span>
+          <p class="daily-ifthen">
+            Después de <strong>${escapeHtml(habit.anchor)}</strong>,
+            haré <strong>${escapeHtml(habit.action)}</strong>.
+          </p>
+          <div class="desired-state-box">
+            <span>Estado que busco</span>
+            <strong>${escapeHtml(habit.desiredState)}</strong>
+            <p>Anticípalo 10 segundos y registra. La meta es acción, no análisis.</p>
+          </div>
+        </div>
+
+        <div class="registration-grid quick-registration" aria-label="Registro diario">
+          <button class="registration-choice primary-choice" type="button" data-action="log-done" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Lo hice</strong>
+            <span>Completé la acción planeada: ${escapeHtml(habit.action)}.</span>
           </button>
-        `).join("")}
-      </div>
+          <button class="registration-choice minimum-choice" type="button" data-action="log-minimum" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Versión mínima</strong>
+            <span>Hice una versión de dos minutos y mantuve vivo el ciclo.</span>
+          </button>
+          <button class="registration-choice miss-choice" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Hoy no pude</strong>
+            <span>No lo hice hoy. Queda como dato de aprendizaje, no como culpa.</span>
+          </button>
+          <button class="registration-choice" type="button" data-action="open-urge" data-id="${habit.id}">
+            <strong>Impulso fuerte</strong>
+            <span>Usa urge surfing antes de abandonar, evitar o actuar en automático.</span>
+          </button>
+          ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Deshacer</button>` : ""}
+        </div>
+      </article>
 
-      ${renderDailyFlowStep(step.id, {
-        habit,
-        todayStatus,
-        stats,
-        log,
-        focusLabel,
-        isRepairMode,
-      })}
+      <div class="daily-detail-stack">
+        <details class="daily-detail">
+          <summary>Ver por qué esto funciona</summary>
+          <div class="daily-detail-body">
+            <p>
+              La identidad reduce la fricción mental porque la acción se vuelve evidencia de quién estás practicando ser,
+              no una tarea aislada. El estado deseado funciona como craving: anticipa el cambio interno que empuja la respuesta.
+            </p>
+          </div>
+        </details>
 
-      <div class="daily-flow-actions">
-        <button class="button ghost" type="button" data-action="daily-flow-prev" ${stepIndex === 0 ? "disabled" : ""}>Atrás</button>
-        <button class="button primary" type="button" data-action="daily-flow-next" ${stepIndex === dailyFlowSteps.length - 1 ? "disabled" : ""}>Siguiente</button>
+        <details class="daily-detail">
+          <summary>Ver plan completo</summary>
+          <div class="daily-detail-body">
+            <div class="compact-loop" aria-label="Bucle neurológico de hoy">
+              <div><b>Señal</b><p>Después de ${escapeHtml(habit.anchor)}</p></div>
+              <div><b>Deseo</b><p>Sentir ${escapeHtml(habit.desiredState)}</p></div>
+              <div><b>Respuesta</b><p>${escapeHtml(habit.action)}</p></div>
+              <div><b>Recompensa</b><p>${escapeHtml(habit.celebration)}</p></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="daily-detail">
+          <summary>Ver señales de automaticidad</summary>
+          <div class="daily-detail-body">
+            <p>Estimación basada en consistencia, edad del hábito, facilidad percibida y política de recordatorios.</p>
+            ${todayStatus === "done" ? `
+              <label class="form-field">
+                Facilidad de ejecución
+                <span class="range-line">
+                  <input data-ease-for="${habit.id}" type="range" min="1" max="5" value="${log?.ease || 3}" />
+                  <span class="range-value" id="ease-${habit.id}">${log?.ease || 3}</span>
+                </span>
+              </label>
+            ` : ""}
+            <div class="stats-row">
+              <div class="stat"><b>${stats.automaticity}%</b><span>Automaticidad</span></div>
+              <div class="stat"><b>${stats.ageDays}</b><span>Días</span></div>
+              <div class="stat"><b>${stats.reminderPolicy.label}</b><span>Recordatorio</span></div>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
   `;

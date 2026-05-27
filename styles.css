@@ -57,16 +57,19 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 28px;
-  border-right: 1px solid var(--line);
+  gap: 0;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(12px);
 }
@@ -85,15 +88,21 @@ button {
 }
 
 .sidebar-content {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 20px;
+  display: none;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
   min-height: 0;
+  padding-top: 16px;
+}
+
+.sidebar.is-open .sidebar-content {
+  display: grid;
 }
 
 .sidebar-toggle {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding: 8px 12px;
   border: 1px solid var(--line);
@@ -102,6 +111,16 @@ button {
   background: var(--surface);
   font-weight: 850;
   cursor: pointer;
+}
+
+.sidebar-toggle::after {
+  content: "▾";
+  margin-left: 8px;
+  font-size: 0.78rem;
+}
+
+.sidebar.is-open .sidebar-toggle::after {
+  content: "▴";
 }
 
 .brand-mark {
@@ -192,7 +211,7 @@ button {
 .sidebar-actions {
   display: grid;
   gap: 10px;
-  margin-top: auto;
+  margin-top: 10px;
 }
 
 .workspace {
@@ -604,6 +623,60 @@ select:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.registration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.registration-choice {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.registration-choice strong,
+.registration-choice span {
+  overflow-wrap: anywhere;
+}
+
+.registration-choice strong {
+  font-size: 0.98rem;
+}
+
+.registration-choice span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.registration-choice.primary-choice {
+  border-color: rgba(13, 124, 102, 0.28);
+  background: var(--green-soft);
+}
+
+.registration-choice.minimum-choice {
+  border-color: rgba(217, 155, 22, 0.3);
+  background: var(--amber-soft);
+}
+
+.registration-choice.miss-choice {
+  border-color: rgba(199, 85, 62, 0.25);
+  background: var(--coral-soft);
+}
+
+.registration-choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .dashboard-heading {
@@ -1405,6 +1478,7 @@ input[type="range"] {
   .focus-grid,
   .daily-loop-grid,
   .compact-loop,
+  .registration-grid,
   .urge-steps,
   .metrics-grid,
   .segmented,

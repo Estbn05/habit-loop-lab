@@ -636,8 +636,6 @@ function renderDashboard() {
             <h2>${getGreeting()}${state.profile.name ? `, ${escapeHtml(state.profile.name)}` : ""}</h2>
           </div>
           <div class="topbar-actions">
-            <button class="button ghost" type="button" data-action="export">Exportar</button>
-            <button class="button secondary" type="button" data-action="notifications">Recordatorios</button>
             <button
               class="button primary"
               type="button"
@@ -730,9 +728,14 @@ function renderSidebar(averageAutomaticity) {
           <button class="button ghost" type="button" data-action="open-cloud">Sincronizar</button>
         </section>
 
-        <div class="sidebar-actions">
-          <button class="button ghost" type="button" data-action="edit-profile">Ajustar perfil</button>
-        </div>
+        <section class="sidebar-section sidebar-menu-actions">
+          <h2>Acciones</h2>
+          <div class="sidebar-actions">
+            <button class="button ghost" type="button" data-action="export">Exportar</button>
+            <button class="button secondary" type="button" data-action="notifications">Recordatorios</button>
+            <button class="button ghost" type="button" data-action="edit-profile">Ajustar perfil</button>
+          </div>
+        </section>
       </div>
     </aside>
   `;
@@ -846,14 +849,26 @@ function renderDailyFlowStep(stepId, context) {
       <article class="daily-step-card">
         <div class="step-copy">
           <span>Regla de dos minutos</span>
-          <h3>Registra solo lo necesario</h3>
-          <p>La versión mínima también cuenta porque mantiene viva la ruta. Si no salió, se guarda como dato de aprendizaje.</p>
+          <h3>Elige lo que pasó hoy</h3>
+          <p>No estás calificando tu valor personal. Solo estás diciendo qué evidencia recibió tu identidad hoy.</p>
         </div>
-        <div class="action-strip" aria-label="Registro diario">
-          <button class="button primary" type="button" data-action="log-done" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>Lo hice</button>
-          <button class="button secondary" type="button" data-action="log-minimum" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>Hice versión mínima</button>
-          <button class="button warning" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>Hoy no pude</button>
-          <button class="button ghost" type="button" data-action="open-urge" data-id="${habit.id}">Tengo impulso fuerte</button>
+        <div class="registration-grid" aria-label="Registro diario">
+          <button class="registration-choice primary-choice" type="button" data-action="log-done" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Lo hice</strong>
+            <span>Marca esto si completaste la acción planeada: ${escapeHtml(habit.action)}.</span>
+          </button>
+          <button class="registration-choice minimum-choice" type="button" data-action="log-minimum" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Hice versión mínima</strong>
+            <span>Marca esto si hiciste una versión más pequeña, pero mantuviste el ciclo vivo.</span>
+          </button>
+          <button class="registration-choice miss-choice" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <strong>Hoy no pude</strong>
+            <span>Marca esto si no lo hiciste y tampoco harás la versión mínima hoy. Cuenta como dato, no culpa.</span>
+          </button>
+          <button class="registration-choice" type="button" data-action="open-urge" data-id="${habit.id}">
+            <strong>Tengo impulso fuerte</strong>
+            <span>Usa esto antes de abandonar, evitar o caer en una conducta que quieres cambiar.</span>
+          </button>
           ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Deshacer</button>` : ""}
         </div>
       </article>
@@ -1359,14 +1374,17 @@ function handleClick(event) {
   }
 
   if (action === "notifications") {
+    ui.sidebarOpen = false;
     requestNotifications();
   }
 
   if (action === "export") {
+    ui.sidebarOpen = false;
     exportData();
   }
 
   if (action === "edit-profile") {
+    ui.sidebarOpen = false;
     state.profile.onboarded = false;
     saveState();
     render();

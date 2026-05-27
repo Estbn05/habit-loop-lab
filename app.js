@@ -617,9 +617,10 @@ function renderCloudPanel() {
 }
 
 function renderDashboard() {
-  const priorityHabit = getDailyPriorityHabit();
-  const selectedHabit = priorityHabit || getSelectedHabit();
-  const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || selectedHabit;
+  const dailyHabit = getDailyPriorityHabit();
+  const selectedHabit = getSelectedHabit();
+  const dashboardHabit = selectedHabit || dailyHabit;
+  const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || dailyHabit || selectedHabit;
   const completedToday = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
   const averageAutomaticity = state.habits.length
     ? Math.round(state.habits.reduce((sum, habit) => sum + getHabitStats(habit).automaticity, 0) / state.habits.length)
@@ -652,7 +653,7 @@ function renderDashboard() {
         ${ui.showCloudPanel ? renderCloudPanel() : ""}
         ${ui.showHabitForm ? renderHabitForm() : ""}
 
-        ${selectedHabit ? renderDailyFocus(selectedHabit, riskyHabits) : renderEmptyState()}
+        ${dailyHabit ? renderDailyFocus(dailyHabit, riskyHabits) : !state.habits.length ? renderEmptyState() : ""}
         ${ui.urgeHabitId && urgeHabit ? renderUrgeSurfingPanel(urgeHabit) : ""}
 
         ${state.habits.length ? `
@@ -672,7 +673,7 @@ function renderDashboard() {
             <aside class="side-column">
               ${renderMetrics(completedToday, averageAutomaticity)}
               ${riskyHabits.length ? renderRelapsePanel(riskyHabits) : renderStablePanel()}
-              ${renderTransitionPanel(selectedHabit)}
+              ${renderTransitionPanel(dashboardHabit)}
             </aside>
           </div>
         ` : ""}
@@ -1002,6 +1003,7 @@ function renderHabitCard(habit) {
 
       <div class="habit-actions">
         <button class="button secondary" type="button" data-action="select-habit" data-id="${habit.id}">Enfocar</button>
+        ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
         <button class="icon-button" type="button" data-action="edit-habit" data-id="${habit.id}" aria-label="Editar ${escapeAttr(habit.action)}">✎</button>
         <button class="icon-button" type="button" data-action="delete-habit" data-id="${habit.id}" aria-label="Eliminar ${escapeAttr(habit.action)}">×</button>
       </div>
@@ -1704,21 +1706,20 @@ function logHabit(id, status, options = {}) {
 
   state.selectedHabitId = id;
   ui.urgeHabitId = null;
+  ui.dailyFlowStep = 0;
 
   if (status === "done") {
-    ui.dailyFlowStep = dailyFlowSteps.length - 1;
     const reward = createVariableReward(habit, previousMissStreak);
     if (options.minimum) {
       reward.title = "Versión mínima protegida";
       reward.body = `${habit.identity} recibió evidencia real sin esperar motivación perfecta.`;
       reward.prompt = "Siente el alivio de haber mantenido el ciclo.";
     }
-    ui.reward = reward;
+    ui.reward = null;
     state.rewardHistory.unshift({ ...reward, habitId: habit.id, at: new Date().toISOString() });
     state.rewardHistory = state.rewardHistory.slice(0, 20);
-    showToast(options.minimum ? "Versión mínima registrada. La identidad siguió viva." : `${habit.action}: micro-voto registrado.`);
+    showToast(options.minimum ? "Versión mínima registrada con éxito. Dashboard actualizado." : "Registro guardado con éxito. Dashboard actualizado.");
   } else {
-    ui.dailyFlowStep = dailyFlowSteps.length - 1;
     ui.reward = null;
     state.reflections.unshift({
       habitId: habit.id,
@@ -1726,7 +1727,7 @@ function logHabit(id, status, options = {}) {
       at: new Date().toISOString(),
     });
     state.reflections = state.reflections.slice(0, 20);
-    showToast("Registrado como dato de aprendizaje. Mañana toca versión mínima.");
+    showToast("Registro guardado con éxito como dato de aprendizaje.");
   }
 
   saveState();
@@ -1738,6 +1739,7 @@ function undoToday(id) {
   if (!habit?.logs) return;
   delete habit.logs[todayKey()];
   ui.reward = null;
+  ui.dailyFlowStep = dailyFlowSteps.findIndex((step) => step.id === "log");
   showToast("Registro de hoy deshecho.");
   saveState();
   render();
@@ -1773,8 +1775,8 @@ function ensureSelectedHabit() {
 function getDailyPriorityHabit() {
   if (!state.habits.length) return null;
 
-  const openHabits = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) !== "done");
-  const repairHabit = openHabits
+  const pendingHabits = state.habits.filter((habit) => !hasTodayLog(habit));
+  const repairHabit = pendingHabits
     .filter((habit) => getMissStreak(habit) > 0)
     .sort((a, b) => getMissStreak(b) - getMissStreak(a))[0];
 
@@ -1783,17 +1785,24 @@ function getDailyPriorityHabit() {
   const hour = new Date().getHours();
   const shouldPrioritizeComplex = hour < 12 || state.profile.chronotype === "morning";
   if (shouldPrioritizeComplex) {
-    const complexHabit = openHabits
+    const complexHabit = pendingHabits
       .filter((habit) => Number(habit.difficulty || 3) >= 4)
       .sort((a, b) => Number(b.difficulty || 3) - Number(a.difficulty || 3))[0];
     if (complexHabit) return complexHabit;
   }
 
-  return getSelectedHabit();
+  const selectedHabit = getSelectedHabit();
+  if (selectedHabit && pendingHabits.some((habit) => habit.id === selectedHabit.id)) return selectedHabit;
+
+  return pendingHabits[0] || null;
 }
 
 function getSelectedHabit() {
   return state.habits.find((habit) => habit.id === state.selectedHabitId) || state.habits[0] || null;
+}
+
+function hasTodayLog(habit) {
+  return Boolean(habit.logs?.[todayKey()]?.status);
 }
 
 function getDailyFocusLabel(habit) {

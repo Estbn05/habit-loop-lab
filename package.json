@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check scripts/smoke-test.mjs",
+    "check": "node --check app.js && node --check service-worker.js && node --check server.mjs && node --check scripts/generate-pwa-icons.mjs && node --check scripts/smoke-test.mjs",
     "test": "npm run check && node scripts/smoke-test.mjs"
   },
   "keywords": [

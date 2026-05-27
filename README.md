@@ -54,6 +54,7 @@ The app is based on behavioral design concepts such as:
 - Reminder fading as habits become more automatic.
 - Local-first persistence with `localStorage`.
 - Optional Supabase authentication with automatic cloud pull after login.
+- Installable PWA experience with manifest, service worker, app icons, and offline app-shell caching.
 
 ## Behavioral Coherence
 
@@ -93,6 +94,7 @@ The app is based on behavioral design concepts such as:
 - Node.js static server for local development
 - `localStorage` for local-first persistence
 - Supabase for optional cross-device sync
+- Progressive Web App manifest and service worker
 - GitHub Pages deployment workflow
 
 The published app is already wired to the configured Supabase project. To enable real sync, run the SQL in [Supabase Setup](docs/SUPABASE_SETUP.md).
@@ -133,6 +135,7 @@ After pushing to a `main` branch:
 ## Documentation
 
 - [Product Brief](docs/PRODUCT_BRIEF.md)
+- [Mobile Install Guide](docs/MOBILE_INSTALL.md)
 - [Screenshot Guide](docs/SCREENSHOT_GUIDE.md)
 - [Supabase Setup](docs/SUPABASE_SETUP.md)
 
@@ -144,6 +147,7 @@ This project demonstrates:
 - Behavioral UX design.
 - Local-first state management.
 - Responsive interface design.
+- Progressive Web App installation and offline app-shell caching.
 - Accessible form-driven interactions.
 - Static deployment readiness.
 - Clear technical documentation.

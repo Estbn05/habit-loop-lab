@@ -40,6 +40,7 @@ This project is useful for a resume because it combines:
 
 - Frontend architecture without framework dependency.
 - Local-first persistence.
+- Installable mobile PWA behavior.
 - Behavioral product design.
 - Responsive UX and accessibility-minded forms.
 - Static deployment readiness.

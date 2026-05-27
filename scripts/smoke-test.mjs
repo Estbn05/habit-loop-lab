@@ -18,9 +18,11 @@ try {
   await waitForServer();
 
   const checks = [
-    ["/", "Habit Loop Lab"],
+    ["/", "manifest.webmanifest"],
     ["/app.js", "Plan de hoy"],
     ["/styles.css", "compact-daily-panel"],
+    ["/manifest.webmanifest", "\"display\": \"standalone\""],
+    ["/service-worker.js", "habit-loop-lab-pwa"],
   ];
 
   for (const [path, expected] of checks) {

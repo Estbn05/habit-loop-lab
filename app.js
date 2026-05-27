@@ -965,9 +965,15 @@ function renderHabitSection() {
 function renderHabitCard(habit) {
   const stats = getHabitStats(habit);
   const todayStatus = getStatusForDate(habit, todayKey());
-  const selected = habit.id === state.selectedHabitId ? "selected" : "";
+  const isSelected = habit.id === state.selectedHabitId;
+  const selected = isSelected ? "selected" : "";
   const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
   const recentDays = getRecentDays(14);
+  const focusLabel = todayStatus === "open" ? "Registrar hábito" : "Ver progreso";
+  const selectedLabel = todayStatus === "open" ? "Registro abierto" : "Progreso abierto";
+  const focusHint = todayStatus === "open"
+    ? `Abrir el flujo diario de ${habit.action}`
+    : `Ver el progreso de ${habit.action}`;
 
   return `
     <article class="habit-card ${selected}">
@@ -1002,7 +1008,15 @@ function renderHabitCard(habit) {
       </div>
 
       <div class="habit-actions">
-        <button class="button secondary" type="button" data-action="select-habit" data-id="${habit.id}">Enfocar</button>
+        <button
+          class="button ${isSelected ? "ghost" : "secondary"}"
+          type="button"
+          data-action="select-habit"
+          data-id="${habit.id}"
+          aria-pressed="${isSelected}"
+          aria-label="${escapeAttr(focusHint)}"
+          title="${escapeAttr(focusHint)}"
+        >${isSelected ? selectedLabel : focusLabel}</button>
         ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
         <button class="icon-button" type="button" data-action="edit-habit" data-id="${habit.id}" aria-label="Editar ${escapeAttr(habit.action)}">✎</button>
         <button class="icon-button" type="button" data-action="delete-habit" data-id="${habit.id}" aria-label="Eliminar ${escapeAttr(habit.action)}">×</button>

@@ -146,6 +146,7 @@ const ui = {
   showCloudPanel: false,
   reward: null,
   urgeHabitId: null,
+  explicitDailyHabitId: null,
   toast: "",
 };
 
@@ -619,8 +620,11 @@ function renderCloudPanel() {
 }
 
 function renderDashboard() {
-  const dailyHabit = getDailyPriorityHabit();
   const selectedHabit = getSelectedHabit();
+  const requestedDailyHabit = state.habits.find((habit) => habit.id === ui.explicitDailyHabitId);
+  const dailyHabit = requestedDailyHabit && !hasTodayLog(requestedDailyHabit)
+    ? requestedDailyHabit
+    : getDailyPriorityHabit();
   const dashboardHabit = selectedHabit || dailyHabit;
   const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || dailyHabit || selectedHabit;
   const completedToday = state.habits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
@@ -1279,6 +1283,7 @@ function handleClick(event) {
 
   if (action === "select-habit") {
     state.selectedHabitId = id;
+    ui.explicitDailyHabitId = id;
     saveState();
     render();
   }
@@ -1657,6 +1662,7 @@ function logHabit(id, status, options = {}) {
 
   state.selectedHabitId = id;
   ui.urgeHabitId = null;
+  ui.explicitDailyHabitId = null;
 
   if (status === "done") {
     const reward = createVariableReward(habit, previousMissStreak);
@@ -1689,6 +1695,7 @@ function undoToday(id) {
   if (!habit?.logs) return;
   delete habit.logs[todayKey()];
   ui.reward = null;
+  ui.explicitDailyHabitId = id;
   showToast("Registro de hoy deshecho.");
   saveState();
   render();

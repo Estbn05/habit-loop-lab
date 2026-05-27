@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260527";
+const CACHE_NAME = "habit-loop-lab-pwa-20260527-focus-fix";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260527-pwa",
-  "./app.js?v=20260527-pwa",
+  "./styles.css?v=20260527-focus-fix",
+  "./app.js?v=20260527-focus-fix",
   "./manifest.webmanifest",
   "./assets/icons/app-icon.svg",
   "./assets/icons/icon-180.png",

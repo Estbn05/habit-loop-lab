@@ -673,7 +673,7 @@ function renderDashboard() {
 
           <div class="main-grid">
             <div class="main-column">
-              ${renderHabitSection()}
+              ${renderHabitSection(dailyHabit?.id || null)}
               ${renderStackMap()}
             </div>
             <aside class="side-column">
@@ -900,7 +900,7 @@ function renderUrgeSurfingPanel(habit) {
   `;
 }
 
-function renderHabitSection() {
+function renderHabitSection(activeDailyHabitId = null) {
   if (!state.habits.length) return renderEmptyState();
 
   return `
@@ -913,16 +913,18 @@ function renderHabitSection() {
         <span class="tag">${state.habits.length}/${MAX_HABITS}</span>
       </div>
       <div class="habit-grid">
-        ${state.habits.map(renderHabitCard).join("")}
+        ${state.habits.map((habit) => renderHabitCard(habit, activeDailyHabitId)).join("")}
       </div>
     </section>
   `;
 }
 
-function renderHabitCard(habit) {
+function renderHabitCard(habit, activeDailyHabitId = null) {
   const stats = getHabitStats(habit);
   const todayStatus = getStatusForDate(habit, todayKey());
-  const isSelected = habit.id === state.selectedHabitId;
+  const hasActiveDailyHabit = Boolean(activeDailyHabitId);
+  const isActiveDailyHabit = habit.id === activeDailyHabitId;
+  const isSelected = isActiveDailyHabit || (!hasActiveDailyHabit && habit.id === state.selectedHabitId);
   const selected = isSelected ? "selected" : "";
   const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
   const recentDays = getRecentDays(14);
@@ -973,6 +975,7 @@ function renderHabitCard(habit) {
           aria-pressed="${isSelected}"
           aria-label="${escapeAttr(focusHint)}"
           title="${escapeAttr(focusHint)}"
+          ${isSelected ? "disabled" : ""}
         >${isSelected ? selectedLabel : focusLabel}</button>
         ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
         <button class="icon-button" type="button" data-action="edit-habit" data-id="${habit.id}" aria-label="Editar ${escapeAttr(habit.action)}">✎</button>
@@ -1660,9 +1663,10 @@ function logHabit(id, status, options = {}) {
     at: new Date().toISOString(),
   };
 
-  state.selectedHabitId = id;
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
+  const nextDailyHabit = getDailyPriorityHabit();
+  state.selectedHabitId = nextDailyHabit?.id || id;
 
   if (status === "done") {
     const reward = createVariableReward(habit, previousMissStreak);

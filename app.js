@@ -138,19 +138,10 @@ const onboardingSteps = [
   },
 ];
 
-const dailyFlowSteps = [
-  { id: "identity", label: "Identidad" },
-  { id: "craving", label: "Estado" },
-  { id: "plan", label: "Plan" },
-  { id: "log", label: "Registro" },
-  { id: "signals", label: "Señales" },
-];
-
 const ui = {
   showHabitForm: false,
   editingHabitId: null,
   onboardingStep: 0,
-  dailyFlowStep: 0,
   sidebarOpen: false,
   showCloudPanel: false,
   reward: null,
@@ -852,105 +843,6 @@ function renderDailyFocus(habit, riskyHabits = []) {
   `;
 }
 
-function renderDailyFlowStep(stepId, context) {
-  const { habit, todayStatus, stats, log, focusLabel, isRepairMode } = context;
-  const actionDisabled = todayStatus === "done";
-
-  if (stepId === "identity") {
-    return `
-      <article class="daily-step-card identity-primer">
-        <span>${escapeHtml(focusLabel)}</span>
-        <h3>${escapeHtml(habit.identity)}</h3>
-        <p>${isRepairMode
-          ? "Ayer fue información, no una sentencia. Hoy protegemos la regla de nunca fallar dos veces."
-          : "Antes de mirar métricas, recuerda quién estás practicando ser."
-        }</p>
-      </article>
-    `;
-  }
-
-  if (stepId === "craving") {
-    return `
-      <article class="daily-step-card craving-spotlight">
-        <span>Craving / estado anticipado</span>
-        <strong>Quiero sentir ${escapeHtml(habit.desiredState)}</strong>
-        <p>Imagina por 10 segundos ese cambio de estado. Esa anticipación es la energía que empuja la respuesta.</p>
-      </article>
-    `;
-  }
-
-  if (stepId === "plan") {
-    return `
-      <article class="daily-step-card">
-        <div class="implementation-panel">
-          <span>Motor si-entonces</span>
-          <p>Después de <strong>${escapeHtml(habit.anchor)}</strong>, voy a <strong>${escapeHtml(habit.action)}</strong>.</p>
-        </div>
-        <div class="compact-loop" aria-label="Bucle neurológico de hoy">
-          <div><b>Cue</b><p>Después de ${escapeHtml(habit.anchor)}</p></div>
-          <div><b>Respuesta</b><p>${escapeHtml(habit.action)}</p></div>
-          <div><b>Recompensa</b><p>${escapeHtml(habit.celebration)}</p></div>
-        </div>
-      </article>
-    `;
-  }
-
-  if (stepId === "log") {
-    return `
-      <article class="daily-step-card">
-        <div class="step-copy">
-          <span>Regla de dos minutos</span>
-          <h3>Elige lo que pasó hoy</h3>
-          <p>No estás calificando tu valor personal. Solo estás diciendo qué evidencia recibió tu identidad hoy.</p>
-        </div>
-        <div class="registration-grid" aria-label="Registro diario">
-          <button class="registration-choice primary-choice" type="button" data-action="log-done" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
-            <strong>Lo hice</strong>
-            <span>Marca esto si completaste la acción planeada: ${escapeHtml(habit.action)}.</span>
-          </button>
-          <button class="registration-choice minimum-choice" type="button" data-action="log-minimum" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
-            <strong>Hice versión mínima</strong>
-            <span>Marca esto si hiciste una versión más pequeña, pero mantuviste el ciclo vivo.</span>
-          </button>
-          <button class="registration-choice miss-choice" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
-            <strong>Hoy no pude</strong>
-            <span>Marca esto si no lo hiciste y tampoco harás la versión mínima hoy. Cuenta como dato, no culpa.</span>
-          </button>
-          <button class="registration-choice" type="button" data-action="open-urge" data-id="${habit.id}">
-            <strong>Tengo impulso fuerte</strong>
-            <span>Usa esto antes de abandonar, evitar o caer en una conducta que quieres cambiar.</span>
-          </button>
-          ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Deshacer</button>` : ""}
-        </div>
-      </article>
-    `;
-  }
-
-  return `
-    <article class="daily-step-card">
-      <div class="step-copy">
-        <span>Métricas de automaticidad</span>
-        <h3>Señales después del voto</h3>
-        <p>Estas señales van después de actuar para evitar que el análisis reemplace la ejecución.</p>
-      </div>
-      ${todayStatus === "done" ? `
-        <label class="form-field">
-          Facilidad de ejecución
-          <span class="range-line">
-            <input data-ease-for="${habit.id}" type="range" min="1" max="5" value="${log?.ease || 3}" />
-            <span class="range-value" id="ease-${habit.id}">${log?.ease || 3}</span>
-          </span>
-        </label>
-      ` : ""}
-      <div class="stats-row">
-        <div class="stat"><b>${stats.automaticity}%</b><span>Automaticidad</span></div>
-        <div class="stat"><b>${stats.ageDays}</b><span>Días</span></div>
-        <div class="stat"><b>${stats.reminderPolicy.label}</b><span>Recordatorio</span></div>
-      </div>
-    </article>
-  `;
-}
-
 function renderUrgeSurfingPanel(habit) {
   return `
     <section class="panel urge-panel" aria-labelledby="urge-title">
@@ -1322,21 +1214,6 @@ function handleClick(event) {
     render();
   }
 
-  if (action === "daily-flow-next") {
-    ui.dailyFlowStep = Math.min(Number(ui.dailyFlowStep || 0) + 1, dailyFlowSteps.length - 1);
-    render();
-  }
-
-  if (action === "daily-flow-prev") {
-    ui.dailyFlowStep = Math.max(Number(ui.dailyFlowStep || 0) - 1, 0);
-    render();
-  }
-
-  if (action === "daily-flow-step") {
-    ui.dailyFlowStep = clamp(Number(button.dataset.step || 0), 0, dailyFlowSteps.length - 1);
-    render();
-  }
-
   if (action === "toggle-sidebar") {
     ui.sidebarOpen = !ui.sidebarOpen;
     render();
@@ -1391,7 +1268,6 @@ function handleClick(event) {
 
   if (action === "select-habit") {
     state.selectedHabitId = id;
-    ui.dailyFlowStep = 0;
     saveState();
     render();
   }
@@ -1770,7 +1646,6 @@ function logHabit(id, status, options = {}) {
 
   state.selectedHabitId = id;
   ui.urgeHabitId = null;
-  ui.dailyFlowStep = 0;
 
   if (status === "done") {
     const reward = createVariableReward(habit, previousMissStreak);
@@ -1803,7 +1678,6 @@ function undoToday(id) {
   if (!habit?.logs) return;
   delete habit.logs[todayKey()];
   ui.reward = null;
-  ui.dailyFlowStep = dailyFlowSteps.findIndex((step) => step.id === "log");
   showToast("Registro de hoy deshecho.");
   saveState();
   render();

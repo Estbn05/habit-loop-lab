@@ -19,8 +19,8 @@ try {
 
   const checks = [
     ["/", "Habit Loop Lab"],
-    ["/app.js", "Craving / estado anticipado"],
-    ["/styles.css", "craving-spotlight"],
+    ["/app.js", "Plan de hoy"],
+    ["/styles.css", "compact-daily-panel"],
   ];
 
   for (const [path, expected] of checks) {

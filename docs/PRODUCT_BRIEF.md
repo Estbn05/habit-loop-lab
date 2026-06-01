@@ -23,6 +23,9 @@ Habit Loop Lab is designed around a different thesis: a useful tracker should he
 5. Automaticity before gamification.
    Progress is measured through ease, consistency, habit age, and reminder fading.
 
+6. Formation capacity before backlog growth.
+   The app allows more saved habits, but only three can be in active formation at the same time. Automated habits move to maintenance.
+
 ## Core User Flow
 
 1. User completes readiness and confidence rulers.
@@ -32,7 +35,8 @@ Habit Loop Lab is designed around a different thesis: a useful tracker should he
 5. User sees the daily cue, craving, response, and reward loop.
 6. User logs from a compact action card, while deeper explanations stay collapsed by default.
 7. User emits a micro-vote or records a lapse.
-8. App adapts feedback, automaticity, relapse support, and reminders.
+8. App evaluates maintenance readiness using automaticity, ease, consistency, age, double-failure risk, and reminder fading.
+9. App adapts feedback, automaticity, relapse support, and reminders.
 
 ## Portfolio Angle
 

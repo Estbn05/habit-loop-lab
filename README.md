@@ -41,7 +41,7 @@ The app is based on behavioral design concepts such as:
 - Stage-of-change onboarding with readiness and confidence rulers.
 - Identity statement for each habit.
 - Mandatory if-then planning: "After X, I will Y."
-- Habit limit of three active habits.
+- Habit limit of three habits in formation, with automatic habits moved to maintenance.
 - Compact daily action card focused on identity, plan, anticipated state, and one-tap logging.
 - Collapsible explanations for users who want the behavioral reasoning without adding daily friction.
 - One-tap micro-vote logging.
@@ -66,7 +66,7 @@ The app is based on behavioral design concepts such as:
 | Identity over motivation | Habits are framed as micro-votes for an identity instead of outcome-only goals. |
 | Stage of Change | Onboarding diagnoses readiness and confidence with 0-10 rulers and adapts guidance by stage. |
 | If-then planning | Every habit requires an anchor routine and action: "After X, I will Y." |
-| Habit limit | The app limits active habits to three to avoid motion/planning traps. |
+| Habit limit | The app limits habits in formation to three; habits that meet automaticity criteria can move to maintenance and stop counting against the limit. |
 | Streak risk and AVE | The UI avoids streak worship and reframes missed days as learning data. |
 | Never miss twice | A lapse panel appears after missed days and prioritizes repair before analysis. |
 | Reward Prediction Error | Rewards are variable, immediate, and identity-based instead of fixed points or badges. |
@@ -83,8 +83,9 @@ The app is based on behavioral design concepts such as:
 4. Use the compact daily card: identity, if-then plan, anticipated state, and registration.
 5. Emit a daily micro-vote, choose the minimum version, or log a lapse without shame.
 6. Open the optional details only when you want the behavioral reasoning, full loop, or automaticity signals.
-7. If a strong impulse appears, use the urge-surfing panel before acting.
-8. Review the automaticity dashboard after the vote instead of starting with analytics.
+7. Move a habit to maintenance only when the app shows enough automaticity signals and the user confirms the transition.
+8. If a strong impulse appears, use the urge-surfing panel before acting.
+9. Review the automaticity dashboard after the vote instead of starting with analytics.
 
 ## Tech Stack
 

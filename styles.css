@@ -401,11 +401,27 @@ select:focus-visible {
   box-shadow: 0 18px 45px rgba(13, 124, 102, 0.12);
 }
 
+.empty-note {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  background: var(--surface-strong);
+}
+
 .habit-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.habit-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .habit-card h3 {
@@ -979,6 +995,49 @@ select:focus-visible {
 .timeline {
   display: grid;
   gap: 10px;
+}
+
+.readiness-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.readiness-list div {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+}
+
+.readiness-list div.ready {
+  border-color: rgba(13, 124, 102, 0.2);
+  background: var(--green-soft);
+}
+
+.readiness-list span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-weight: 900;
+}
+
+.readiness-list div.ready span {
+  color: var(--teal-dark);
+}
+
+.readiness-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .timeline + .policy-note {

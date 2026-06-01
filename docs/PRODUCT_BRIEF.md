@@ -26,6 +26,9 @@ Habit Loop Lab is designed around a different thesis: a useful tracker should he
 6. Formation capacity before backlog growth.
    The app allows more saved habits, but only three can be in active formation at the same time. Automated habits move to maintenance.
 
+7. Sync must preserve evidence.
+   Cloud sync merges habit records and daily logs across devices instead of replacing one device's state with another.
+
 ## Core User Flow
 
 1. User completes readiness and confidence rulers.

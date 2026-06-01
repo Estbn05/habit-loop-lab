@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260601-maintenance";
+const CACHE_NAME = "habit-loop-lab-pwa-20260601-sync-merge";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260601-maintenance",
-  "./app.js?v=20260601-maintenance",
+  "./styles.css?v=20260601-sync-merge",
+  "./app.js?v=20260601-sync-merge",
   "./manifest.webmanifest",
   "./assets/icons/app-icon.svg",
   "./assets/icons/icon-180.png",

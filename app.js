@@ -1,5 +1,6 @@
 const STORAGE_KEY = "habit-loop-lab-state-v1";
 const CLOUD_CONFIG_KEY = "habit-loop-lab-cloud-config-v1";
+const CLOUD_BACKUP_KEY = "habit-loop-lab-cloud-backups-v1";
 const CLOUD_TABLE = "habit_states";
 const SUPABASE_MODULE_URL = "https://esm.sh/@supabase/supabase-js@2.46.1";
 const DEFAULT_CLOUD_CONFIG = {
@@ -181,8 +182,8 @@ registerServiceWorker();
 render();
 initCloud();
 
-function loadState() {
-  const fallback = {
+function createFallbackState() {
+  return {
     profile: {
       onboarded: false,
       name: "",
@@ -206,45 +207,156 @@ function loadState() {
     },
     habits: [],
     selectedHabitId: null,
+    deletedHabitIds: [],
     rewardHistory: [],
     reflections: [],
   };
+}
 
+function loadState() {
+  const fallback = createFallbackState();
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return fallback;
-    const parsed = JSON.parse(saved);
-    return {
-      ...fallback,
-      ...parsed,
-      profile: {
-        ...fallback.profile,
-        ...(parsed.profile || {}),
-        draftHabit: {
-          ...fallback.profile.draftHabit,
-          ...(parsed.profile?.draftHabit || {}),
-        },
-      },
-      habits: Array.isArray(parsed.habits) ? parsed.habits.map(normalizeHabit) : [],
-      rewardHistory: Array.isArray(parsed.rewardHistory) ? parsed.rewardHistory : [],
-      reflections: Array.isArray(parsed.reflections) ? parsed.reflections : [],
-    };
+    return normalizeState(JSON.parse(saved), fallback);
   } catch (error) {
     console.warn("Could not load saved state", error);
     return fallback;
   }
 }
 
+function normalizeState(candidate, fallback = createFallbackState()) {
+  const parsed = candidate && typeof candidate === "object" ? candidate : {};
+  const deletedHabitIds = Array.isArray(parsed.deletedHabitIds)
+    ? [...new Set(parsed.deletedHabitIds.filter(Boolean).map(String))]
+    : [];
+
+  return {
+    ...fallback,
+    ...parsed,
+    profile: {
+      ...fallback.profile,
+      ...(parsed.profile || {}),
+      draftHabit: {
+        ...fallback.profile.draftHabit,
+        ...(parsed.profile?.draftHabit || {}),
+      },
+    },
+    habits: Array.isArray(parsed.habits)
+      ? parsed.habits.map(normalizeHabit).filter(Boolean)
+      : [],
+    selectedHabitId: parsed.selectedHabitId || null,
+    deletedHabitIds,
+    rewardHistory: Array.isArray(parsed.rewardHistory) ? parsed.rewardHistory : [],
+    reflections: Array.isArray(parsed.reflections) ? parsed.reflections : [],
+  };
+}
+
 function normalizeHabit(habit) {
-  const lifecycle = Object.values(HABIT_LIFECYCLE).includes(habit?.lifecycle)
+  if (!habit || typeof habit !== "object") return null;
+
+  const logs = normalizeLogs(habit.logs);
+  const logDates = Object.keys(logs).sort();
+  const createdAt = isDateKey(habit.createdAt) ? habit.createdAt : logDates[0] || todayKey();
+  const lifecycle = Object.values(HABIT_LIFECYCLE).includes(habit.lifecycle)
     ? habit.lifecycle
     : HABIT_LIFECYCLE.FORMATION;
+  const id = habit.id || `habit-${stableHash([
+    habit.identity,
+    habit.anchor,
+    habit.action,
+    createdAt,
+  ].join("|"))}`;
 
   return {
     ...habit,
+    id,
     lifecycle,
-    logs: habit?.logs || {},
+    createdAt,
+    logs,
   };
+}
+
+function normalizeLogs(logs) {
+  if (!logs) return {};
+
+  if (Array.isArray(logs)) {
+    return logs.reduce((result, item) => {
+      if (typeof item === "string" && isDateKey(item)) {
+        result[item] = normalizeLogEntry("done");
+        return result;
+      }
+
+      if (item && typeof item === "object") {
+        const dateKey = item.dateKey || item.date || item.day;
+        const entry = normalizeLogEntry(item);
+        if (isDateKey(dateKey) && entry) result[dateKey] = entry;
+      }
+
+      return result;
+    }, {});
+  }
+
+  if (typeof logs !== "object") return {};
+
+  return Object.entries(logs).reduce((result, [dateKey, value]) => {
+    const entry = normalizeLogEntry(value);
+    if (isDateKey(dateKey) && entry) result[dateKey] = entry;
+    return result;
+  }, {});
+}
+
+function normalizeLogEntry(value) {
+  if (value === true) {
+    return {
+      status: "done",
+      ease: 3,
+      minimum: false,
+      at: "",
+    };
+  }
+
+  if (value === false) {
+    return {
+      status: "missed",
+      ease: 1,
+      minimum: false,
+      at: "",
+    };
+  }
+
+  if (typeof value === "string") {
+    const status = normalizeLogStatus(value);
+    if (!status) return null;
+    return {
+      status,
+      ease: status === "done" ? 3 : 1,
+      minimum: value === "minimum",
+      at: "",
+    };
+  }
+
+  if (!value || typeof value !== "object") return null;
+
+  const status = normalizeLogStatus(
+    value.status || value.result || (value.done ? "done" : "") || (value.missed ? "missed" : ""),
+  );
+  if (!status) return null;
+
+  return {
+    ...value,
+    status,
+    ease: Number.isFinite(Number(value.ease)) ? Number(value.ease) : status === "done" ? 3 : 1,
+    minimum: Boolean(value.minimum),
+    at: typeof value.at === "string" ? value.at : value.updatedAt || value.createdAt || "",
+  };
+}
+
+function normalizeLogStatus(status) {
+  const value = String(status || "").toLowerCase();
+  if (["done", "complete", "completed", "success", "minimum"].includes(value)) return "done";
+  if (["missed", "miss", "skip", "skipped", "failed"].includes(value)) return "missed";
+  return "";
 }
 
 function saveState() {
@@ -1829,6 +1941,7 @@ function deleteHabit(id) {
   if (!confirmed) return;
 
   state.habits = state.habits.filter((item) => item.id !== id);
+  state.deletedHabitIds = [...new Set([...(state.deletedHabitIds || []), id])];
   if (state.selectedHabitId === id) state.selectedHabitId = getFormationHabits()[0]?.id || state.habits[0]?.id || null;
   ui.showHabitForm = false;
   ui.editingHabitId = null;
@@ -2313,15 +2426,15 @@ async function syncStateAfterCloudLogin() {
     const remote = await fetchCloudRow();
 
     if (remote?.state) {
-      if (isLocalStateNewerThanRemote(remote) && !isLocalStateEmpty()) {
-        if (await pushStateToCloud({ silent: true })) {
-          cloud.message = "Sesión activa. Este dispositivo tenía cambios más recientes y ya los subí a la nube.";
-        }
-        return;
-      }
+      const hadLocalData = !isLocalStateEmpty();
+      applyCloudState(remote.state, remote.updated_at, { merge: hadLocalData });
 
-      applyCloudState(remote.state, remote.updated_at);
-      cloud.message = "Datos descargados automáticamente desde la nube.";
+      if (hadLocalData) {
+        await pushStateToCloud({ silent: true, skipRemoteMerge: true });
+        cloud.message = "Datos locales y nube mezclados sin borrar hábitos ni registros.";
+      } else {
+        cloud.message = "Datos descargados automáticamente desde la nube.";
+      }
       return;
     }
 
@@ -2386,7 +2499,17 @@ async function pushStateToCloud(options = {}) {
   }
 
   try {
+    if (!options.skipRemoteMerge) {
+      const remote = await fetchCloudRow();
+      if (remote?.state) {
+        applyCloudState(remote.state, remote.updated_at, { merge: true, backupReason: "before-cloud-push-merge" });
+      }
+    }
+
     const updatedAt = new Date().toISOString();
+    state.updatedAt = updatedAt;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
     const { error } = await cloud.client
       .from(CLOUD_TABLE)
       .upsert(
@@ -2429,8 +2552,15 @@ async function pullStateFromCloud(options = {}) {
       return;
     }
 
-    applyCloudState(remote.state, remote.updated_at);
-    cloud.message = "Datos descargados desde la nube.";
+    const hadLocalData = !isLocalStateEmpty();
+    applyCloudState(remote.state, remote.updated_at, { merge: hadLocalData });
+
+    if (hadLocalData) {
+      await pushStateToCloud({ silent: true, skipRemoteMerge: true });
+      cloud.message = "Nube mezclada con este dispositivo sin borrar registros locales.";
+    } else {
+      cloud.message = "Datos descargados desde la nube.";
+    }
   } catch (error) {
     console.error(error);
     cloud.message = error.message || "No pude descargar la nube.";
@@ -2451,12 +2581,164 @@ async function fetchCloudRow() {
   return data;
 }
 
-function applyCloudState(remoteState, updatedAt) {
+function applyCloudState(remoteState, updatedAt, options = {}) {
   cloud.suspendAutoSync = true;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteState));
-  state = loadState();
+  backupLocalState(options.backupReason || "before-cloud-apply");
+  state = options.merge
+    ? mergeStateSnapshots(state, remoteState, updatedAt)
+    : normalizeState(remoteState);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   cloud.lastSync = updatedAt || "";
   cloud.suspendAutoSync = false;
+}
+
+function mergeStateSnapshots(localSnapshot, remoteSnapshot, remoteUpdatedAt = "") {
+  const local = normalizeState(localSnapshot);
+  const remote = normalizeState(remoteSnapshot);
+  const localTime = getSnapshotTime(local);
+  const remoteTime = getSnapshotTime(remote, remoteUpdatedAt);
+  const remoteIsNewer = remoteTime > localTime;
+  const preferred = remoteIsNewer ? remote : local;
+  const secondary = remoteIsNewer ? local : remote;
+  const deletedHabitIds = [...new Set([
+    ...(local.deletedHabitIds || []),
+    ...(remote.deletedHabitIds || []),
+  ].map(String))];
+  const habits = mergeHabitLists(local.habits, remote.habits, deletedHabitIds);
+  const selectedHabitId = habits.some((habit) => habit.id === preferred.selectedHabitId)
+    ? preferred.selectedHabitId
+    : habits.some((habit) => habit.id === secondary.selectedHabitId)
+      ? secondary.selectedHabitId
+      : habits[0]?.id || null;
+
+  return {
+    ...secondary,
+    ...preferred,
+    profile: {
+      ...secondary.profile,
+      ...preferred.profile,
+      draftHabit: {
+        ...secondary.profile?.draftHabit,
+        ...preferred.profile?.draftHabit,
+      },
+    },
+    habits,
+    selectedHabitId,
+    deletedHabitIds,
+    rewardHistory: mergeTimeline(local.rewardHistory, remote.rewardHistory, 20),
+    reflections: mergeTimeline(local.reflections, remote.reflections, 20),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = []) {
+  const deleted = new Set(deletedHabitIds);
+  const merged = new Map();
+
+  for (const habit of [...localHabits, ...remoteHabits]) {
+    if (!habit || deleted.has(String(habit.id))) continue;
+    const existing = merged.get(habit.id);
+    merged.set(habit.id, existing ? mergeHabit(existing, habit) : normalizeHabit(habit));
+  }
+
+  return [...merged.values()].sort((a, b) => {
+    const aTime = Date.parse(a.createdAt || "") || 0;
+    const bTime = Date.parse(b.createdAt || "") || 0;
+    return aTime - bTime;
+  });
+}
+
+function mergeHabit(firstHabit, secondHabit) {
+  const first = normalizeHabit(firstHabit);
+  const second = normalizeHabit(secondHabit);
+  const firstTime = getHabitChangeTime(first);
+  const secondTime = getHabitChangeTime(second);
+  const preferred = secondTime > firstTime ? second : first;
+  const secondary = secondTime > firstTime ? first : second;
+
+  return {
+    ...secondary,
+    ...preferred,
+    lifecycle: preferred.lifecycle || secondary.lifecycle || HABIT_LIFECYCLE.FORMATION,
+    logs: mergeLogs(secondary.logs, preferred.logs),
+  };
+}
+
+function mergeLogs(firstLogs = {}, secondLogs = {}) {
+  const first = normalizeLogs(firstLogs);
+  const second = normalizeLogs(secondLogs);
+  const dates = [...new Set([...Object.keys(first), ...Object.keys(second)])];
+
+  return dates.reduce((result, dateKey) => {
+    result[dateKey] = mergeLogEntries(first[dateKey], second[dateKey]);
+    return result;
+  }, {});
+}
+
+function mergeLogEntries(firstEntry, secondEntry) {
+  const first = normalizeLogEntry(firstEntry);
+  const second = normalizeLogEntry(secondEntry);
+  if (!first) return second;
+  if (!second) return first;
+
+  const firstTime = Date.parse(first.at || "");
+  const secondTime = Date.parse(second.at || "");
+  if (Number.isFinite(firstTime) && Number.isFinite(secondTime) && firstTime !== secondTime) {
+    return firstTime > secondTime ? { ...second, ...first } : { ...first, ...second };
+  }
+
+  if (first.status !== second.status) {
+    const done = first.status === "done" ? first : second.status === "done" ? second : null;
+    if (done) return { ...first, ...second, ...done, status: "done" };
+  }
+
+  return { ...first, ...second };
+}
+
+function mergeTimeline(firstItems = [], secondItems = [], limit = 20) {
+  const items = [...firstItems, ...secondItems].filter((item) => item && typeof item === "object");
+  const byKey = new Map();
+
+  for (const item of items) {
+    const key = [item.at, item.habitId, item.title, item.text, item.type].filter(Boolean).join("|") || JSON.stringify(item);
+    byKey.set(key, item);
+  }
+
+  return [...byKey.values()]
+    .sort((a, b) => (Date.parse(b.at || "") || 0) - (Date.parse(a.at || "") || 0))
+    .slice(0, limit);
+}
+
+function getSnapshotTime(snapshot, fallback = "") {
+  const time = Date.parse(snapshot?.updatedAt || fallback || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getHabitChangeTime(habit) {
+  const logTimes = Object.values(habit?.logs || {})
+    .map((log) => Date.parse(log?.at || ""))
+    .filter(Number.isFinite);
+  return Math.max(
+    Date.parse(habit?.updatedAt || "") || 0,
+    Date.parse(habit?.maintenanceAt || "") || 0,
+    Date.parse(habit?.createdAt || "") || 0,
+    ...logTimes,
+  );
+}
+
+function backupLocalState(reason) {
+  try {
+    if (isLocalStateEmpty()) return;
+    const backups = JSON.parse(localStorage.getItem(CLOUD_BACKUP_KEY) || "[]");
+    backups.unshift({
+      reason,
+      at: new Date().toISOString(),
+      state,
+    });
+    localStorage.setItem(CLOUD_BACKUP_KEY, JSON.stringify(backups.slice(0, 5)));
+  } catch (error) {
+    console.warn("Could not create local backup", error);
+  }
 }
 
 function isLocalStateEmpty() {
@@ -2643,6 +2925,10 @@ function toDateKey(date) {
   const local = new Date(date);
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
   return local.toISOString().slice(0, 10);
+}
+
+function isDateKey(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 }
 
 function addDays(dateKey, amount) {

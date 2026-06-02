@@ -19,7 +19,7 @@ try {
 
   const checks = [
     ["/", "manifest.webmanifest"],
-    ["/app.js", "mergeStateSnapshots"],
+    ["/app.js", "deletedLogKeys"],
     ["/styles.css", "readiness-list"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],

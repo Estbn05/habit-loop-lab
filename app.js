@@ -208,6 +208,7 @@ function createFallbackState() {
     habits: [],
     selectedHabitId: null,
     deletedHabitIds: [],
+    deletedLogKeys: [],
     rewardHistory: [],
     reflections: [],
   };
@@ -230,6 +231,9 @@ function normalizeState(candidate, fallback = createFallbackState()) {
   const deletedHabitIds = Array.isArray(parsed.deletedHabitIds)
     ? [...new Set(parsed.deletedHabitIds.filter(Boolean).map(String))]
     : [];
+  const deletedLogKeys = Array.isArray(parsed.deletedLogKeys)
+    ? [...new Set(parsed.deletedLogKeys.filter(Boolean).map(String))]
+    : [];
 
   return {
     ...fallback,
@@ -243,10 +247,11 @@ function normalizeState(candidate, fallback = createFallbackState()) {
       },
     },
     habits: Array.isArray(parsed.habits)
-      ? parsed.habits.map(normalizeHabit).filter(Boolean)
+      ? parsed.habits.map(normalizeHabit).filter(Boolean).map((habit) => pruneDeletedLogs(habit, deletedLogKeys))
       : [],
     selectedHabitId: parsed.selectedHabitId || null,
     deletedHabitIds,
+    deletedLogKeys,
     rewardHistory: Array.isArray(parsed.rewardHistory) ? parsed.rewardHistory : [],
     reflections: Array.isArray(parsed.reflections) ? parsed.reflections : [],
   };
@@ -751,11 +756,9 @@ function renderDashboard() {
   const trackedHabits = getTrackedHabits();
   const formationHabits = getFormationHabits();
   const selectedHabit = getSelectedHabit();
-  const requestedDailyHabit = state.habits.find((habit) => habit.id === ui.explicitDailyHabitId);
-  const dailyHabit = requestedDailyHabit && !hasTodayLog(requestedDailyHabit)
-    ? requestedDailyHabit
-    : getDailyPriorityHabit();
-  const dashboardHabit = selectedHabit || dailyHabit;
+  const requestedDailyHabit = trackedHabits.find((habit) => habit.id === ui.explicitDailyHabitId);
+  const dailyHabit = requestedDailyHabit || getDailyPriorityHabit() || selectedHabit;
+  const dashboardHabit = dailyHabit || selectedHabit;
   const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || dailyHabit || selectedHabit;
   const completedToday = trackedHabits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
   const averageAutomaticity = trackedHabits.length
@@ -1090,11 +1093,9 @@ function renderHabitCard(habit, activeDailyHabitId = null) {
   const selected = isSelected ? "selected" : "";
   const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
   const recentDays = getRecentDays(14);
-  const focusLabel = todayStatus === "open" ? "Registrar hábito" : "Ver progreso";
-  const selectedLabel = todayStatus === "open" ? "Registro abierto" : "Progreso abierto";
-  const focusHint = todayStatus === "open"
-    ? `Abrir el flujo diario de ${habit.action}`
-    : `Ver el progreso de ${habit.action}`;
+  const focusLabel = todayStatus === "open" ? "Registrar / progreso" : "Ver progreso";
+  const selectedLabel = todayStatus === "open" ? "Hábito abierto" : "Progreso abierto";
+  const focusHint = `Abrir registro y progreso de ${habit.action}`;
 
   return `
     <article class="habit-card ${selected}">
@@ -1890,6 +1891,7 @@ function logHabit(id, status, options = {}) {
     minimum: Boolean(options.minimum),
     at: new Date().toISOString(),
   };
+  state.deletedLogKeys = removeDeletedLogKey(state.deletedLogKeys, id, todayKey());
 
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
@@ -1926,8 +1928,10 @@ function undoToday(id) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit?.logs) return;
   delete habit.logs[todayKey()];
+  state.deletedLogKeys = [...new Set([...(state.deletedLogKeys || []), getDeletedLogKey(id, todayKey())])];
   ui.reward = null;
   ui.explicitDailyHabitId = id;
+  state.selectedHabitId = id;
   showToast("Registro de hoy deshecho.");
   saveState();
   render();
@@ -2050,6 +2054,15 @@ function canAddFormationHabit() {
 
 function hasTodayLog(habit) {
   return Boolean(habit.logs?.[todayKey()]?.status);
+}
+
+function getDeletedLogKey(habitId, dateKey) {
+  return `${habitId}:${dateKey}`;
+}
+
+function removeDeletedLogKey(keys = [], habitId, dateKey) {
+  const deletedKey = getDeletedLogKey(habitId, dateKey);
+  return (keys || []).filter((key) => key !== deletedKey);
 }
 
 function getMaintenanceReadiness(habit, stats = getHabitStats(habit)) {
@@ -2604,7 +2617,11 @@ function mergeStateSnapshots(localSnapshot, remoteSnapshot, remoteUpdatedAt = ""
     ...(local.deletedHabitIds || []),
     ...(remote.deletedHabitIds || []),
   ].map(String))];
-  const habits = mergeHabitLists(local.habits, remote.habits, deletedHabitIds);
+  const deletedLogKeys = [...new Set([
+    ...(local.deletedLogKeys || []),
+    ...(remote.deletedLogKeys || []),
+  ].map(String))];
+  const habits = mergeHabitLists(local.habits, remote.habits, deletedHabitIds, deletedLogKeys);
   const selectedHabitId = habits.some((habit) => habit.id === preferred.selectedHabitId)
     ? preferred.selectedHabitId
     : habits.some((habit) => habit.id === secondary.selectedHabitId)
@@ -2625,20 +2642,21 @@ function mergeStateSnapshots(localSnapshot, remoteSnapshot, remoteUpdatedAt = ""
     habits,
     selectedHabitId,
     deletedHabitIds,
+    deletedLogKeys,
     rewardHistory: mergeTimeline(local.rewardHistory, remote.rewardHistory, 20),
     reflections: mergeTimeline(local.reflections, remote.reflections, 20),
     updatedAt: new Date().toISOString(),
   };
 }
 
-function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = []) {
+function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = [], deletedLogKeys = []) {
   const deleted = new Set(deletedHabitIds);
   const merged = new Map();
 
   for (const habit of [...localHabits, ...remoteHabits]) {
     if (!habit || deleted.has(String(habit.id))) continue;
     const existing = merged.get(habit.id);
-    merged.set(habit.id, existing ? mergeHabit(existing, habit) : normalizeHabit(habit));
+    merged.set(habit.id, existing ? mergeHabit(existing, habit, deletedLogKeys) : pruneDeletedLogs(normalizeHabit(habit), deletedLogKeys));
   }
 
   return [...merged.values()].sort((a, b) => {
@@ -2648,7 +2666,7 @@ function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = 
   });
 }
 
-function mergeHabit(firstHabit, secondHabit) {
+function mergeHabit(firstHabit, secondHabit, deletedLogKeys = []) {
   const first = normalizeHabit(firstHabit);
   const second = normalizeHabit(secondHabit);
   const firstTime = getHabitChangeTime(first);
@@ -2660,16 +2678,29 @@ function mergeHabit(firstHabit, secondHabit) {
     ...secondary,
     ...preferred,
     lifecycle: preferred.lifecycle || secondary.lifecycle || HABIT_LIFECYCLE.FORMATION,
-    logs: mergeLogs(secondary.logs, preferred.logs),
+    logs: mergeLogs(secondary.logs, preferred.logs, preferred.id, deletedLogKeys),
   };
 }
 
-function mergeLogs(firstLogs = {}, secondLogs = {}) {
+function pruneDeletedLogs(habit, deletedLogKeys = []) {
+  if (!habit) return null;
+  const deleted = new Set(deletedLogKeys);
+  return {
+    ...habit,
+    logs: Object.fromEntries(
+      Object.entries(habit.logs || {}).filter(([dateKey]) => !deleted.has(getDeletedLogKey(habit.id, dateKey))),
+    ),
+  };
+}
+
+function mergeLogs(firstLogs = {}, secondLogs = {}, habitId = "", deletedLogKeys = []) {
   const first = normalizeLogs(firstLogs);
   const second = normalizeLogs(secondLogs);
+  const deleted = new Set(deletedLogKeys);
   const dates = [...new Set([...Object.keys(first), ...Object.keys(second)])];
 
   return dates.reduce((result, dateKey) => {
+    if (habitId && deleted.has(getDeletedLogKey(habitId, dateKey))) return result;
     result[dateKey] = mergeLogEntries(first[dateKey], second[dateKey]);
     return result;
   }, {});

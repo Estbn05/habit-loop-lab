@@ -147,7 +147,7 @@ const ui = {
   showHabitForm: false,
   editingHabitId: null,
   onboardingStep: 0,
-  activeView: "today",
+  activeView: getInitialView(),
   sidebarOpen: false,
   showCloudPanel: false,
   reward: null,
@@ -379,6 +379,16 @@ function registerServiceWorker() {
       console.warn("Service worker registration failed", error);
     });
   });
+}
+
+function getInitialView() {
+  const view = window.location.hash.replace("#", "");
+  return ["today", "habits", "progress", "menu"].includes(view) ? view : "today";
+}
+
+function updateViewHash(view) {
+  if (window.location.hash === `#${view}`) return;
+  window.history.replaceState(null, "", `#${view}`);
 }
 
 function render() {
@@ -795,21 +805,14 @@ function renderDashboard() {
 
 function renderAppNavigation() {
   const views = [
-    { id: "today", label: "Hoy", icon: "○" },
+    { id: "today", label: "Hoy", icon: "☼" },
     { id: "habits", label: "Hábitos", icon: "↻" },
-    { id: "progress", label: "Progreso", icon: "↗" },
+    { id: "progress", label: "Progreso", icon: "⌁" },
     { id: "menu", label: "Menú", icon: "≡" },
   ];
 
   return `
     <nav class="app-nav" aria-label="Navegación principal">
-      <div class="nav-brand" aria-label="Habit Loop Lab">
-        <span class="brand-mark" aria-hidden="true">HL</span>
-        <div>
-          <strong>Habit Loop Lab</strong>
-          <span>Identity-first tracker</span>
-        </div>
-      </div>
       <div class="nav-items">
         ${views.map((view) => `
           <button
@@ -824,10 +827,6 @@ function renderAppNavigation() {
           </button>
         `).join("")}
       </div>
-      <button class="nav-cloud" type="button" data-action="open-cloud">
-        <span class="cloud-dot ${cloud.user ? "connected" : ""}" aria-hidden="true"></span>
-        <span>${escapeHtml(getCloudStatus().label)}</span>
-      </button>
     </nav>
   `;
 }
@@ -844,38 +843,14 @@ function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday,
 
   return `
     <section class="view-shell today-view" aria-labelledby="today-title">
-      <header class="view-header day-view-header">
-        <div>
-          <p class="date-kicker">${formatDate(todayKey())}</p>
-          <h1 id="today-title">${getGreeting()}${state.profile.name ? `, ${escapeHtml(state.profile.name)}` : ""}</h1>
-          <p>${pendingToday
-            ? `${pendingToday} ${pendingToday === 1 ? "hábito pendiente" : "hábitos pendientes"}. Una decisión a la vez.`
-            : "Los votos de hoy están registrados."
-          }</p>
-        </div>
+      <header class="mockup-day-header">
+        <span id="today-title">${formatDayLabel(todayKey())} · ${pendingToday} ${pendingToday === 1 ? "pendiente" : "pendientes"}</span>
         ${renderTodayDots(trackedHabits)}
       </header>
 
       ${dailyHabit ? renderDailyFocus(dailyHabit, riskyHabits) : renderEmptyState()}
       ${ui.urgeHabitId && urgeHabit ? renderUrgeSurfingPanel(urgeHabit) : ""}
-
-      ${trackedHabits.length > 1 ? `
-        <div class="today-switcher" aria-label="Cambiar hábito de hoy">
-          ${trackedHabits.map((habit) => `
-            <button
-              class="${habit.id === dailyHabit?.id ? "active" : ""}"
-              type="button"
-              data-action="select-today-habit"
-              data-id="${habit.id}"
-            >
-              <span class="habit-state-dot ${getStatusForDate(habit, todayKey())}"></span>
-              ${escapeHtml(habit.action)}
-            </button>
-          `).join("")}
-        </div>
-      ` : ""}
-
-      <p class="today-summary">${completedToday}/${trackedHabits.length || 0} micro-votos emitidos hoy.</p>
+      <span class="sr-only">${completedToday}/${trackedHabits.length || 0} micro-votos emitidos hoy.</span>
     </section>
   `;
 }
@@ -883,7 +858,16 @@ function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday,
 function renderTodayDots(habits) {
   return `
     <div class="today-dots" aria-label="Estado de hábitos de hoy">
-      ${habits.map((habit) => `<span class="${getStatusForDate(habit, todayKey())}" title="${escapeAttr(habit.action)}"></span>`).join("")}
+      ${habits.map((habit) => `
+        <button
+          class="${getStatusForDate(habit, todayKey())} ${habit.id === ui.explicitDailyHabitId ? "active" : ""}"
+          type="button"
+          data-action="select-today-habit"
+          data-id="${habit.id}"
+          aria-label="Abrir ${escapeAttr(habit.action)}"
+          title="${escapeAttr(habit.action)}"
+        ></button>
+      `).join("")}
     </div>
   `;
 }
@@ -895,31 +879,27 @@ function renderHabitsView({ canAddHabit }) {
 
   return `
     <section class="view-shell habits-view" aria-labelledby="habits-view-title">
-      <header class="view-header">
-        <div>
-          <p class="date-kicker">Sistema actual</p>
-          <h1 id="habits-view-title">Tus hábitos</h1>
-          <p>${formationHabits.length} en formación · ${maintenanceHabits.length} en mantenimiento</p>
-        </div>
-        <button
-          class="button primary"
-          type="button"
-          data-action="open-form"
-          title="${canAddHabit ? "Crear un nuevo hábito en formación" : "Pasa un hábito listo a mantenimiento para abrir espacio"}"
-          ${canAddHabit ? "" : "disabled"}
-        >Añadir hábito</button>
+      <header class="mockup-view-header">
+        <h1 id="habits-view-title">Tus hábitos</h1>
+        <p>${formationHabits.length} en formación · ${maintenanceHabits.length} en mantenimiento</p>
       </header>
 
       ${renderCompactHabitGroup("En formación", formationHabits, `${formationHabits.length}/${MAX_HABITS}`)}
       ${renderCompactHabitGroup("Mantenimiento", maintenanceHabits, `${maintenanceHabits.length}`)}
 
-      <div class="capacity-note ${freeSlots ? "" : "full"}">
+      <button
+        class="capacity-note ${freeSlots ? "" : "full"}"
+        type="button"
+        data-action="open-form"
+        title="${canAddHabit ? "Crear un nuevo hábito en formación" : "Pasa un hábito listo a mantenimiento para abrir espacio"}"
+        ${canAddHabit ? "" : "disabled"}
+      >
         <strong>${freeSlots ? "Espacio libre en formación" : "Capacidad de formación completa"}</strong>
         <span>${freeSlots
           ? `Puedes añadir ${freeSlots} ${freeSlots === 1 ? "hábito" : "hábitos"} más.`
           : "Pasa un hábito listo a mantenimiento para abrir espacio."
         }</span>
-      </div>
+      </button>
     </section>
   `;
 }
@@ -928,8 +908,8 @@ function renderCompactHabitGroup(title, habits, tag) {
   return `
     <section class="habit-list-section" aria-label="${escapeAttr(title)}">
       <div class="list-section-title">
-        <h2>${escapeHtml(title)}</h2>
-        <span>${tag}</span>
+        <h2>${escapeHtml(title)}${title === "En formación" ? ` (${tag})` : ""}</h2>
+        ${title === "En formación" ? "" : `<span>${tag}</span>`}
       </div>
       ${habits.length
         ? `<div class="compact-habit-list">${habits.map(renderCompactHabitItem).join("")}</div>`
@@ -943,7 +923,6 @@ function renderCompactHabitItem(habit) {
   const stats = getHabitStats(habit);
   const status = getStatusForDate(habit, todayKey());
   const lifecycle = getHabitLifecycle(habit);
-  const readiness = getMaintenanceReadiness(habit, stats);
 
   return `
     <article class="compact-habit-item ${lifecycle}">
@@ -957,15 +936,6 @@ function renderCompactHabitItem(habit) {
           ${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "Automático" : `${Math.round((stats.averageEase / 5) * 100)}% facilidad`}
         </span>
       </button>
-      <div class="compact-habit-actions">
-        <button class="button ghost" type="button" data-action="select-today-habit" data-id="${habit.id}">
-          ${status === "open" ? "Registrar hoy" : "Ver hoy"}
-        </button>
-        ${renderLifecycleAction(habit, readiness)}
-        ${status !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
-        <button class="icon-button" type="button" data-action="edit-habit" data-id="${habit.id}" aria-label="Editar ${escapeAttr(habit.action)}">✎</button>
-        <button class="icon-button" type="button" data-action="delete-habit" data-id="${habit.id}" aria-label="Eliminar ${escapeAttr(habit.action)}">×</button>
-      </div>
     </article>
   `;
 }
@@ -975,32 +945,25 @@ function renderProgressView(habit, riskyHabits = []) {
 
   const stats = getHabitStats(habit);
   const lifecycle = getHabitLifecycle(habit);
-  const completion = Math.round(stats.completionRate * 100);
+  const completion = Math.round(getCompletionRateForDays(habit, 28) * 100);
   const ease = Math.round((stats.averageEase / 5) * 100);
   const missStreak = getMissStreak(habit);
   const isRisky = riskyHabits.some((item) => item.id === habit.id) || missStreak > 0;
   const phase = lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "maintenance" : stats.ageDays <= 21 ? "effort" : "consolidation";
+  const todayLog = habit.logs?.[todayKey()];
+  const readiness = getMaintenanceReadiness(habit, stats);
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
-      <header class="view-header">
-        <div>
-          <p class="date-kicker">Progreso sin presión de racha</p>
-          <h1 id="progress-view-title">${escapeHtml(habit.action)}</h1>
-          <p>${stats.ageDays} días de historia · ${escapeHtml(habit.identity)}</p>
-        </div>
-        <label class="progress-habit-select">
-          <span>Ver hábito</span>
-          <select data-action="progress-select">
-            ${getTrackedHabits().map((item) => option(item.id, item.action, habit.id)).join("")}
-          </select>
-        </label>
+      <header class="mockup-view-header">
+        <h1 id="progress-view-title">${escapeHtml(habit.action)}</h1>
+        <p>${stats.ageDays} días de historia</p>
       </header>
 
       <div class="progress-mini-stats">
-        <div><strong>${completion}%</strong><span>Últimos 14 días</span></div>
+        <div><strong>${completion}%</strong><span>Últimas 4 sem.</span></div>
         <div><strong>${ease}%</strong><span>Facilidad</span></div>
-        <div><strong>${stats.reminderPolicy.label}</strong><span>Recordatorio</span></div>
+        <div><strong>${stats.reminderPolicy.label}</strong><span>Recordat.</span></div>
       </div>
 
       <section class="progress-section">
@@ -1017,18 +980,39 @@ function renderProgressView(habit, riskyHabits = []) {
         ${renderHistoryHeatmap(habit, 21)}
       </section>
 
-      ${isRisky ? renderProgressRelapse(habit, missStreak) : `
-        <div class="stable-note">
-          <strong>Patrón estable</strong>
-          <span>No hay doble falla activa. Mantén el voto pequeño y repetible.</span>
-        </div>
-      `}
+      ${isRisky ? renderProgressRelapse(habit, missStreak) : ""}
 
       <details class="progress-details">
-        <summary>Ver análisis y criterios de mantenimiento</summary>
+        <summary>Ver más detalles</summary>
         <div class="progress-details-body">
+          ${todayLog?.status === "done" ? `
+            <label class="form-field">
+              ¿Qué tan fácil se sintió hoy?
+              <span class="range-line">
+                <input data-ease-for="${habit.id}" type="range" min="1" max="5" value="${todayLog.ease || 3}" />
+                <span class="range-value" id="ease-${habit.id}">${todayLog.ease || 3}</span>
+              </span>
+            </label>
+          ` : ""}
           ${renderTransitionPanel(habit)}
           ${renderStackMapForHabit(habit)}
+          <section class="panel progress-management">
+            <div class="section-title">
+              <div>
+                <h2>Gestionar hábito</h2>
+                <p>Editar el plan o cambiar su estado.</p>
+              </div>
+            </div>
+            <div class="button-row">
+              <button class="button ghost" type="button" data-action="select-today-habit" data-id="${habit.id}">
+                ${todayLog?.status ? "Ver hoy" : "Registrar hoy"}
+              </button>
+              ${renderLifecycleAction(habit, readiness)}
+              ${todayLog?.status ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
+              <button class="button ghost" type="button" data-action="edit-habit" data-id="${habit.id}">Editar</button>
+              <button class="button warning" type="button" data-action="delete-habit" data-id="${habit.id}">Eliminar</button>
+            </div>
+          </section>
         </div>
       </details>
     </section>
@@ -1132,30 +1116,16 @@ function renderMenuView(averageAutomaticity) {
 
 function renderDailyFocus(habit, riskyHabits = []) {
   const todayStatus = getStatusForDate(habit, todayKey());
-  const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
   const stats = getHabitStats(habit);
-  const log = habit.logs?.[todayKey()];
-  const missStreak = getMissStreak(habit);
-  const isRepairMode = riskyHabits.some((item) => item.id === habit.id);
   const ease = Math.round((stats.averageEase / 5) * 100);
   const actionDisabled = todayStatus === "done";
 
   return `
     <section class="daily-focus" aria-labelledby="daily-action-title">
-      <div class="daily-focus-meta">
-        <span class="identity-chip">${escapeHtml(habit.identity)}</span>
-        <span class="status-pill ${statusClass}">${completedCopy(todayStatus, missStreak)}</span>
-      </div>
-
-      ${isRepairMode ? `
-        <div class="rescue-context">
-          <strong>Reparación primero</strong>
-          <span>Ayer fue información. Hoy basta la versión mínima para proteger el ciclo.</span>
-        </div>
-      ` : ""}
+      <span class="identity-chip">${escapeHtml(habit.identity)}</span>
 
       <article class="today-habit-card">
-        <span class="today-anchor">Después de ${escapeHtml(habit.anchor)} →</span>
+        <span class="today-anchor">después de ${escapeHtml(habit.anchor)} →</span>
         <h2 id="daily-action-title">${escapeHtml(habit.action)}</h2>
         <div class="today-desired-state">
           <span aria-hidden="true">✦</span>
@@ -1176,41 +1146,20 @@ function renderDailyFocus(habit, riskyHabits = []) {
         </button>
         <div class="today-action-row">
           <button class="today-action-secondary rescue" type="button" data-action="log-minimum" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <span aria-hidden="true">−</span>
             <strong>Versión mínima</strong>
-            <span>Dos minutos cuentan.</span>
           </button>
           <button class="today-action-secondary" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+            <span aria-hidden="true">○</span>
             <strong>Hoy no pude</strong>
-            <span>Queda como dato.</span>
           </button>
         </div>
         <button class="today-action-secondary urge" type="button" data-action="open-urge" data-id="${habit.id}">
-          <strong>Impulso fuerte</strong>
-          <span>Usar urge surfing antes de abandonar.</span>
+          <span aria-hidden="true">∿</span>
+          <strong>Impulso fuerte — urge surfing</strong>
         </button>
         ${todayStatus !== "open" ? `<button class="button ghost reopen-button" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir registro de hoy</button>` : ""}
       </div>
-
-      <details class="today-details">
-        <summary>Ver contexto y señales</summary>
-        <div class="today-details-body">
-          <div class="compact-loop" aria-label="Bucle conductual de hoy">
-            <div><b>Señal</b><p>${escapeHtml(habit.anchor)}</p></div>
-            <div><b>Deseo</b><p>${escapeHtml(habit.desiredState)}</p></div>
-            <div><b>Respuesta</b><p>${escapeHtml(habit.action)}</p></div>
-            <div><b>Recompensa</b><p>${escapeHtml(habit.celebration)}</p></div>
-          </div>
-          ${todayStatus === "done" ? `
-            <label class="form-field">
-              ¿Qué tan fácil se sintió?
-              <span class="range-line">
-                <input data-ease-for="${habit.id}" type="range" min="1" max="5" value="${log?.ease || 3}" />
-                <span class="range-value" id="ease-${habit.id}">${log?.ease || 3}</span>
-              </span>
-            </label>
-          ` : ""}
-        </div>
-      </details>
     </section>
   `;
 }
@@ -1655,6 +1604,7 @@ function handleClick(event) {
 
   if (action === "switch-view") {
     ui.activeView = button.dataset.view || "today";
+    updateViewHash(ui.activeView);
     render();
   }
 
@@ -1662,6 +1612,7 @@ function handleClick(event) {
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
     ui.activeView = "today";
+    updateViewHash("today");
     saveState();
     render();
   }
@@ -1670,6 +1621,7 @@ function handleClick(event) {
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
     ui.activeView = "progress";
+    updateViewHash("progress");
     saveState();
     render();
   }
@@ -1736,6 +1688,7 @@ function handleClick(event) {
     ui.showHabitForm = true;
     ui.editingHabitId = null;
     ui.activeView = "habits";
+    updateViewHash("habits");
     render();
   }
 
@@ -1749,6 +1702,7 @@ function handleClick(event) {
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
     ui.activeView = "progress";
+    updateViewHash("progress");
     saveState();
     render();
   }
@@ -2419,6 +2373,12 @@ function getHabitStats(habit) {
     phaseLabel,
     reminderPolicy,
   };
+}
+
+function getCompletionRateForDays(habit, days) {
+  const activeDays = getRecentDays(days).filter((day) => isActiveOn(habit, day));
+  if (!activeDays.length) return 0;
+  return activeDays.filter((day) => getStatusForDate(habit, day) === "done").length / activeDays.length;
 }
 
 function getMissStreak(habit) {
@@ -3237,6 +3197,11 @@ function formatDate(dateKey) {
     day: "numeric",
     month: "long",
   }).format(parseDateKey(dateKey));
+}
+
+function formatDayLabel(dateKey) {
+  const label = new Intl.DateTimeFormat("es-CO", { weekday: "long" }).format(parseDateKey(dateKey));
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function formatDateTime(value) {

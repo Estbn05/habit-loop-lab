@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260608-view-navigation";
+const CACHE_NAME = "habit-loop-lab-pwa-20260608-mockup-faithful";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260608-view-navigation",
-  "./app.js?v=20260608-view-navigation",
+  "./styles.css?v=20260608-mockup-faithful",
+  "./app.js?v=20260608-mockup-faithful",
   "./manifest.webmanifest",
   "./assets/icons/app-icon.svg",
   "./assets/icons/icon-180.png",

@@ -19,8 +19,8 @@ try {
 
   const checks = [
     ["/", "manifest.webmanifest"],
-    ["/app.js", "deletedLogKeys"],
-    ["/styles.css", "readiness-list"],
+    ["/app.js", "renderAppNavigation"],
+    ["/styles.css", "automaticity-stages"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],
   ];

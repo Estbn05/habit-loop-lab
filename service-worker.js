@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260601-log-reopen";
+const CACHE_NAME = "habit-loop-lab-pwa-20260608-view-navigation";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260601-log-reopen",
-  "./app.js?v=20260601-log-reopen",
+  "./styles.css?v=20260608-view-navigation",
+  "./app.js?v=20260608-view-navigation",
   "./manifest.webmanifest",
   "./assets/icons/app-icon.svg",
   "./assets/icons/icon-180.png",

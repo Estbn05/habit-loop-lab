@@ -41,6 +41,13 @@ Habit Loop Lab is designed around a different thesis: a useful tracker should he
 8. App evaluates maintenance readiness using automaticity, ease, consistency, age, double-failure risk, and reminder fading.
 9. App adapts feedback, automaticity, relapse support, and reminders.
 
+The main application separates this flow into four focused views:
+
+- Today: identity, cue, desired state, and one-tap registration.
+- Habits: formation capacity and maintenance lifecycle.
+- Progress: ease, consistency, reminder dependence, and relapse recovery.
+- Menu: profile, cloud sync, reminders, and export.
+
 ## Portfolio Angle
 
 This project is useful for a resume because it combines:

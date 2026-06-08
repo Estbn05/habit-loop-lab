@@ -43,6 +43,7 @@ The app is based on behavioral design concepts such as:
 - Mandatory if-then planning: "After X, I will Y."
 - Habit limit of three habits in formation, with automatic habits moved to maintenance.
 - Compact daily action card focused on identity, plan, anticipated state, and one-tap logging.
+- Four focused views: Today, Habits, Progress, and Menu, with bottom navigation on mobile.
 - Collapsible explanations for users who want the behavioral reasoning without adding daily friction.
 - One-tap micro-vote logging.
 - Lapse logging without shame.

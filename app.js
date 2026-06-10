@@ -3,6 +3,7 @@ const CLOUD_CONFIG_KEY = "habit-loop-lab-cloud-config-v1";
 const CLOUD_BACKUP_KEY = "habit-loop-lab-cloud-backups-v1";
 const CLOUD_TABLE = "habit_states";
 const SUPABASE_MODULE_URL = "https://esm.sh/@supabase/supabase-js@2.46.1";
+const CLOUD_REFRESH_INTERVAL = 60 * 1000;
 const DEFAULT_CLOUD_CONFIG = {
   url: "https://rzpdqrcfqxpgpjstfxau.supabase.co",
   anonKey: "sb_publishable_4S7QCVJjbtMGd8-RghkzLA_UYfTAPld",
@@ -166,6 +167,7 @@ const cloud = {
   confirmationPending: false,
   lastSync: "",
   autoTimer: null,
+  refreshInFlight: false,
   suspendAutoSync: false,
 };
 
@@ -180,6 +182,7 @@ app.addEventListener("input", handleInput);
 app.addEventListener("change", handleChange);
 
 registerServiceWorker();
+registerAutomaticCloudRefresh();
 render();
 initCloud();
 
@@ -651,8 +654,8 @@ function renderCloudAccess(context = "dashboard") {
   const status = getCloudStatus();
   const title = context === "onboarding" ? "¿Ya tienes datos en otro dispositivo?" : "Nube opcional";
   const body = context === "onboarding"
-    ? "Inicia sesión para descargar tus hábitos del computador o del celular."
-    : "Sincroniza manualmente o deja que la app guarde cambios cuando haya sesión activa.";
+    ? "Inicia sesión y la app mantendrá tus hábitos actualizados automáticamente."
+    : "Inicia sesión una vez. La app se encarga de mantener los dispositivos actualizados.";
 
   return `
     <section class="cloud-access ${context === "onboarding" ? "cloud-access-onboarding" : ""}">
@@ -662,7 +665,7 @@ function renderCloudAccess(context = "dashboard") {
         <p>${body}</p>
         ${cloud.message ? `<p class="fine-print">${escapeHtml(cloud.message)}</p>` : ""}
       </div>
-      <button class="button secondary" type="button" data-action="open-cloud">Sincronizar</button>
+      <button class="button secondary" type="button" data-action="open-cloud">Iniciar sesión</button>
     </section>
   `;
 }
@@ -727,10 +730,9 @@ function renderCloudPanel() {
           <div class="form-footer">
             <p class="fine-print">${escapeHtml(cloud.message || "La cuenta es opcional. Sin sesión, tus datos siguen locales.")}</p>
             <div class="wizard-actions">
-              <button class="button ghost" type="button" data-action="cloud-clear-config" ${cloud.busy ? "disabled" : ""}>Restaurar Supabase</button>
               ${cloud.confirmationPending && cloud.pendingEmail ? `<button class="button ghost" type="button" data-action="cloud-resend-confirmation" ${cloud.busy ? "disabled" : ""}>Reenviar confirmación</button>` : ""}
               <button class="button secondary" type="submit" data-auth-mode="signup" ${cloud.busy ? "disabled" : ""}>Crear cuenta</button>
-              <button class="button primary" type="submit" data-auth-mode="login" ${cloud.busy ? "disabled" : ""}>Entrar</button>
+              <button class="button primary" type="submit" data-auth-mode="login" ${cloud.busy ? "disabled" : ""}>Iniciar sesión</button>
             </div>
           </div>
         </form>
@@ -742,7 +744,7 @@ function renderCloudPanel() {
     <section class="panel cloud-panel" aria-labelledby="cloud-title">
       <div class="section-title">
         <div>
-          <h2 id="cloud-title">Sincronización activa</h2>
+          <h2 id="cloud-title">Sesión iniciada</h2>
           <p>${escapeHtml(cloud.user.email || "Sesión iniciada")}</p>
         </div>
         <button class="icon-button" type="button" data-action="close-cloud" aria-label="Cerrar sincronización">×</button>
@@ -750,13 +752,11 @@ function renderCloudPanel() {
 
       <div class="cloud-status-card">
         <span class="status-pill ${status.className}">${status.label}</span>
-        <p>${escapeHtml(cloud.message || "Tus cambios locales se guardan automáticamente en la nube.")}</p>
+        <p>Tus cambios se sincronizan automáticamente entre dispositivos.</p>
         ${cloud.lastSync ? `<p class="fine-print">Última sincronización: ${escapeHtml(formatDateTime(cloud.lastSync))}</p>` : ""}
       </div>
 
       <div class="button-row">
-        <button class="button primary" type="button" data-action="cloud-push" ${cloud.busy ? "disabled" : ""}>Subir este dispositivo</button>
-        <button class="button secondary" type="button" data-action="cloud-pull" ${cloud.busy ? "disabled" : ""}>Descargar nube</button>
         <button class="button ghost" type="button" data-action="cloud-logout" ${cloud.busy ? "disabled" : ""}>Cerrar sesión</button>
       </div>
     </section>
@@ -1096,18 +1096,21 @@ function renderMenuView(averageAutomaticity) {
         </section>
 
         <section class="menu-section">
-          <h2>Nube</h2>
-          <p class="sidebar-note">${escapeHtml(getCloudStatus().label)}</p>
-          <button class="button ghost" type="button" data-action="open-cloud">Sincronizar</button>
-        </section>
-
-        <section class="menu-section menu-actions-section">
-          <h2>Acciones</h2>
-          <div class="sidebar-actions">
-            <button class="button ghost" type="button" data-action="export">Exportar</button>
-            <button class="button secondary" type="button" data-action="notifications">Recordatorios</button>
-            <button class="button ghost" type="button" data-action="edit-profile">Ajustar perfil</button>
-          </div>
+          <h2>Cuenta</h2>
+          <p class="sidebar-note">
+            ${cloud.user
+              ? `${escapeHtml(cloud.user.email || "Sesión iniciada")} · Sincronización automática activa.`
+              : "Inicia sesión para mantener tus datos actualizados en todos tus dispositivos."
+            }
+          </p>
+          <button
+            class="button ${cloud.user ? "ghost" : "primary"}"
+            type="button"
+            data-action="${cloud.user ? "cloud-logout" : "open-cloud"}"
+            ${cloud.busy ? "disabled" : ""}
+          >
+            ${cloud.user ? "Cerrar sesión" : "Iniciar sesión"}
+          </button>
         </section>
       </div>
     </section>
@@ -2708,6 +2711,53 @@ function queueCloudAutoSync() {
   cloud.autoTimer = window.setTimeout(() => {
     pushStateToCloud({ silent: true });
   }, 1400);
+}
+
+function registerAutomaticCloudRefresh() {
+  window.addEventListener("online", refreshCloudStateSilently);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshCloudStateSilently();
+  });
+  window.setInterval(refreshCloudStateSilently, CLOUD_REFRESH_INTERVAL);
+}
+
+async function refreshCloudStateSilently() {
+  if (
+    cloud.refreshInFlight ||
+    cloud.busy ||
+    !cloud.client ||
+    !cloud.user ||
+    document.visibilityState !== "visible" ||
+    !navigator.onLine
+  ) return;
+
+  cloud.refreshInFlight = true;
+
+  try {
+    const remote = await fetchCloudRow();
+    if (!remote?.state) return;
+
+    const remoteTime = Date.parse(remote.updated_at || remote.state.updatedAt || "");
+    const localTime = Date.parse(state.updatedAt || "");
+    if (Number.isFinite(localTime) && Number.isFinite(remoteTime) && remoteTime <= localTime) return;
+
+    const hadLocalData = !isLocalStateEmpty();
+    applyCloudState(remote.state, remote.updated_at, {
+      merge: hadLocalData,
+      backupReason: "before-automatic-cloud-refresh",
+    });
+
+    if (hadLocalData) {
+      await pushStateToCloud({ silent: true, skipRemoteMerge: true });
+    }
+
+    cloud.message = "Datos actualizados automáticamente.";
+    render();
+  } catch (error) {
+    console.error(error);
+  } finally {
+    cloud.refreshInFlight = false;
+  }
 }
 
 async function pushStateToCloud(options = {}) {

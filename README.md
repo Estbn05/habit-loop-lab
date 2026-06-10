@@ -54,7 +54,7 @@ The app is based on behavioral design concepts such as:
 - Automaticity score based on ease, consistency, and habit age.
 - Reminder fading as habits become more automatic.
 - Local-first persistence with `localStorage`.
-- Optional Supabase authentication with automatic cloud pull after login.
+- Optional Supabase authentication with automatic sync after login, local changes, reconnecting, and returning to the app.
 - Non-destructive cloud merge, so one device should not erase habits or logs from another device during sync.
 - Installable PWA experience with manifest, service worker, app icons, and offline app-shell caching.
 

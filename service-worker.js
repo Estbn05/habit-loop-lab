@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260610-scale-plus-five";
+const CACHE_NAME = "habit-loop-lab-pwa-20260610-automatic-account";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-scale-plus-five",
-  "./app.js?v=20260609-loop-icon",
+  "./app.js?v=20260610-automatic-account",
   "./manifest.webmanifest?v=20260609-loop-icon",
   "./assets/icons/app-icon.svg?v=20260609-loop-icon",
   "./assets/icons/icon-180.png?v=20260609-loop-icon",

@@ -1,8 +1,8 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260609-mobile-scale";
+const CACHE_NAME = "habit-loop-lab-pwa-20260610-scale-plus-five";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260609-mobile-scale",
+  "./styles.css?v=20260610-scale-plus-five",
   "./app.js?v=20260609-loop-icon",
   "./manifest.webmanifest?v=20260609-loop-icon",
   "./assets/icons/app-icon.svg?v=20260609-loop-icon",

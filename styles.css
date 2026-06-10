@@ -2907,3 +2907,140 @@ body {
     grid-template-columns: none;
   }
 }
+
+/* Uniform 5% scale pass */
+html {
+  font-size: 105%;
+}
+
+body {
+  font-size: 16.8px;
+}
+
+.workspace {
+  width: min(483px, 100vw);
+  max-width: 483px;
+  padding: 23px 19px 97px;
+}
+
+.app-nav {
+  width: min(483px, 100vw);
+  max-width: 483px;
+  padding: 10px 8px calc(8px + env(safe-area-inset-bottom));
+}
+
+.nav-item {
+  gap: 3px;
+  min-height: 57px;
+  padding: 3px 2px;
+}
+
+.nav-icon {
+  width: 25px;
+  height: 25px;
+}
+
+.view-shell {
+  gap: 19px;
+}
+
+.mockup-day-header {
+  gap: 15px;
+}
+
+.today-dots {
+  gap: 6px;
+}
+
+.today-dots button,
+.habit-state-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.daily-focus {
+  gap: 17px;
+}
+
+.identity-chip {
+  padding: 7px 15px;
+}
+
+.today-habit-card {
+  min-height: 229px;
+  gap: 12px;
+  padding: 23px;
+}
+
+.today-desired-state,
+.today-ease {
+  gap: 9px;
+}
+
+.today-ease > div {
+  height: 6px;
+}
+
+.today-actions,
+.today-action-row,
+.menu-grid {
+  gap: 11px;
+}
+
+.today-action-primary,
+.today-action-secondary {
+  min-height: 53px;
+  padding: 13px 16px;
+}
+
+.reopen-button {
+  min-height: 40px;
+}
+
+.compact-habit-item {
+  padding: 14px 0;
+}
+
+.habit-list-main {
+  gap: 11px;
+}
+
+.habit-list-badge {
+  padding: 3px 9px;
+}
+
+.capacity-note,
+.progress-relapse,
+.progress-details-body > .panel,
+.progress-management,
+.menu-section,
+.menu-actions-section {
+  padding: 15px;
+}
+
+.progress-mini-stats {
+  gap: 9px;
+}
+
+.progress-mini-stats div {
+  padding: 11px 6px;
+}
+
+.automaticity-stages span {
+  min-height: 53px;
+}
+
+.history-heatmap span {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 680px) {
+  .workspace {
+    padding: 21px 19px 103px;
+  }
+
+  .today-habit-card {
+    min-height: 229px;
+  }
+}

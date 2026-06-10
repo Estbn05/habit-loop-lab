@@ -47,41 +47,37 @@ function createIconPng(size) {
 }
 
 function iconPixel(x, y, size) {
-  const nx = x / Math.max(size - 1, 1);
-  const ny = y / Math.max(size - 1, 1);
-  const teal = [13, 124, 102];
-  const blue = [55, 111, 151];
-  const coral = [199, 85, 62];
-  const mid = mix(teal, blue, clamp(nx * 0.9 + ny * 0.25, 0, 1));
-  const base = mix(mid, coral, clamp((nx + ny - 0.85) * 0.9, 0, 1));
-  const shade = 1 - radial(nx, ny, 0.18, 0.1) * 0.12 + radial(nx, ny, 0.85, 0.9) * 0.1;
-  const letter = letterMask(x, y, size);
+  const unit = size / 56;
+  const px = (x + 0.5) / unit;
+  const py = (y + 0.5) / unit;
+  const green = [29, 158, 117, 255];
+  const white = [255, 255, 255, 255];
 
-  if (letter) return [255, 255, 255, 255];
-  return [
-    clampByte(base[0] * shade),
-    clampByte(base[1] * shade),
-    clampByte(base[2] * shade),
-    255,
-  ];
+  if (insideCircle(px, py, 14.5, 44, 5.5)) return white;
+  if (insideCircle(px, py, 28, 28, 3)) return mixRgba(green, white, 0.28);
+  if (insideLoopStroke(px, py)) return white;
+  return green;
 }
 
-function letterMask(x, y, size) {
-  const unit = size / 18;
-  const inRect = (left, top, width, height) => (
-    x >= left * unit &&
-    x <= (left + width) * unit &&
-    y >= top * unit &&
-    y <= (top + height) * unit
-  );
+function insideLoopStroke(x, y) {
+  const centerX = 28;
+  const centerY = 28;
+  const radius = 19;
+  const halfStroke = 1.75;
+  const distance = Math.hypot(x - centerX, y - centerY);
+  const angle = (Math.atan2(y - centerY, x - centerX) * 180) / Math.PI;
+  const normalizedAngle = angle < 0 ? angle + 360 : angle;
+  const onArc = normalizedAngle >= 270 || normalizedAngle <= 130;
 
   return (
-    inRect(4, 5, 1.6, 8) ||
-    inRect(8.2, 5, 1.6, 8) ||
-    inRect(4, 8.2, 5.8, 1.45) ||
-    inRect(11.7, 5, 1.65, 8) ||
-    inRect(11.7, 11.3, 4.2, 1.65)
+    (onArc && Math.abs(distance - radius) <= halfStroke) ||
+    insideCircle(x, y, 28, 9, halfStroke) ||
+    insideCircle(x, y, 15.8, 42.6, halfStroke)
   );
+}
+
+function insideCircle(x, y, centerX, centerY, radius) {
+  return Math.hypot(x - centerX, y - centerY) <= radius;
 }
 
 function roundedRect(x, y, size, radius) {
@@ -129,20 +125,6 @@ function crc32(buffer) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function mix(a, b, t) {
-  return a.map((value, index) => value + (b[index] - value) * t);
-}
-
-function radial(x, y, cx, cy) {
-  const dx = x - cx;
-  const dy = y - cy;
-  return clamp(1 - Math.sqrt(dx * dx + dy * dy), 0, 1);
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function clampByte(value) {
-  return Math.max(0, Math.min(255, Math.round(value)));
+function mixRgba(a, b, t) {
+  return a.map((value, index) => Math.round(value + (b[index] - value) * t));
 }

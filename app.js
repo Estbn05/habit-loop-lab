@@ -418,7 +418,7 @@ function renderOnboarding() {
         <div class="onboarding-hero">
           <div>
             <div class="brand">
-              <span class="brand-mark" aria-hidden="true">HL</span>
+              <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260609-loop-icon" alt="" />
               <div>
                 <h1 id="onboarding-title">Habit Loop Lab</h1>
                 <p>Tracker de identidad, ejecución mínima y automaticidad.</p>
@@ -1068,7 +1068,7 @@ function renderMenuView(averageAutomaticity) {
     <section class="view-shell menu-view" aria-labelledby="menu-view-title">
       <header class="view-header">
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">HL</span>
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260609-loop-icon" alt="" />
           <div>
             <p class="date-kicker">Configuración y contexto</p>
             <h1 id="menu-view-title">Habit Loop Lab</h1>

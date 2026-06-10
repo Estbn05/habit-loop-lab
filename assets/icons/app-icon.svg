@@ -1,16 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-labelledby="title desc">
   <title id="title">Habit Loop Lab icon</title>
-  <desc id="desc">Gradient square icon with the letters HL.</desc>
-  <defs>
-    <linearGradient id="brand" x1="72" x2="440" y1="72" y2="440" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0d7c66" />
-      <stop offset="0.62" stop-color="#376f97" />
-      <stop offset="1" stop-color="#c7553e" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="92" fill="url(#brand)" />
+  <desc id="desc">Open habit loop with a completion node.</desc>
+  <rect width="56" height="56" rx="16" fill="#1D9E75" />
   <path
-    fill="#fff"
-    d="M112 152h48v83h99v-83h48v208h-48v-86h-99v86h-48V152Zm238 0h48v164h92v44H350V152Z"
+    d="M28 9 A19 19 0 1 1 14.5 44"
+    fill="none"
+    stroke="#fff"
+    stroke-linecap="round"
+    stroke-width="3.5"
   />
+  <circle cx="14.5" cy="44" r="5.5" fill="#fff" />
+  <circle cx="28" cy="28" r="3" fill="#fff" fill-opacity=".28" />
 </svg>

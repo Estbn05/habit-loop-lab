@@ -1,14 +1,14 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260608-mockup-faithful";
+const CACHE_NAME = "habit-loop-lab-pwa-20260609-loop-icon";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260608-mockup-faithful",
-  "./app.js?v=20260608-mockup-faithful",
-  "./manifest.webmanifest",
-  "./assets/icons/app-icon.svg",
-  "./assets/icons/icon-180.png",
-  "./assets/icons/icon-192.png",
-  "./assets/icons/icon-512.png",
+  "./styles.css?v=20260609-loop-icon",
+  "./app.js?v=20260609-loop-icon",
+  "./manifest.webmanifest?v=20260609-loop-icon",
+  "./assets/icons/app-icon.svg?v=20260609-loop-icon",
+  "./assets/icons/icon-180.png?v=20260609-loop-icon",
+  "./assets/icons/icon-192.png?v=20260609-loop-icon",
+  "./assets/icons/icon-512.png?v=20260609-loop-icon",
 ];
 
 self.addEventListener("install", (event) => {

@@ -2430,8 +2430,8 @@ body {
 }
 
 .workspace {
-  width: min(440px, 100vw);
-  max-width: 440px;
+  width: min(460px, 100vw);
+  max-width: 460px;
   min-height: 100vh;
   margin: 0 auto;
   padding: 22px 18px 92px;
@@ -2449,10 +2449,10 @@ body {
   left: 50%;
   z-index: 50;
   display: block;
-  width: min(440px, 100vw);
-  max-width: 440px;
+  width: min(460px, 100vw);
+  max-width: 460px;
   min-height: 0;
-  padding: 8px 8px calc(7px + env(safe-area-inset-bottom));
+  padding: 9px 8px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid #e1e6df;
   border-right: 1px solid #e1e6df;
   border-left: 1px solid #e1e6df;
@@ -2471,12 +2471,12 @@ body {
   display: grid;
   justify-items: center;
   gap: 2px;
-  min-height: 48px;
-  padding: 2px;
+  min-height: 54px;
+  padding: 3px 2px;
   border: 0;
   color: #8a958f;
   background: transparent;
-  font-size: 0.65rem;
+  font-size: 0.74rem;
   font-weight: 650;
   text-align: center;
 }
@@ -2489,14 +2489,14 @@ body {
 }
 
 .nav-icon {
-  width: 22px;
-  height: 22px;
-  font-size: 1.12rem;
+  width: 24px;
+  height: 24px;
+  font-size: 1.22rem;
   font-weight: 700;
 }
 
 .view-shell {
-  gap: 16px;
+  gap: 18px;
 }
 
 .mockup-day-header {
@@ -2505,7 +2505,7 @@ body {
   justify-content: space-between;
   gap: 14px;
   color: #64736b;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .today-dots {
@@ -2513,8 +2513,8 @@ body {
 }
 
 .today-dots button {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -2537,26 +2537,26 @@ body {
 .daily-focus {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
   margin: 0;
 }
 
 .identity-chip {
   margin: 0;
-  padding: 5px 12px;
+  padding: 7px 14px;
   color: #3b6d11;
   background: #eaf3de;
-  font-size: 0.75rem;
+  font-size: 0.84rem;
   font-weight: 650;
 }
 
 .today-habit-card {
   display: grid;
-  min-height: 220px;
+  min-height: 218px;
   align-content: center;
-  gap: 9px;
-  padding: 18px;
+  gap: 11px;
+  padding: 22px;
   border: 1px solid #dce4df;
   border-radius: 8px;
   background: #ffffff;
@@ -2565,24 +2565,24 @@ body {
 
 .today-anchor {
   color: #89958e;
-  font-size: 0.68rem;
+  font-size: 0.77rem;
   font-weight: 650;
   letter-spacing: 0.05em;
 }
 
 .today-habit-card h2 {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.35;
 }
 
 .today-desired-state {
-  gap: 6px;
+  gap: 8px;
 }
 
 .today-desired-state p {
-  font-size: 0.8rem;
+  font-size: 0.91rem;
 }
 
 .today-desired-state strong {
@@ -2592,11 +2592,11 @@ body {
 .today-ease {
   gap: 8px;
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }
 
 .today-ease > div {
-  height: 4px;
+  height: 5px;
 }
 
 .today-ease i {
@@ -2604,15 +2604,15 @@ body {
 }
 
 .today-actions {
-  gap: 8px;
+  gap: 10px;
 }
 
 .today-action-primary,
 .today-action-secondary {
-  min-height: 44px;
-  padding: 10px 14px;
+  min-height: 50px;
+  padding: 12px 15px;
   border-radius: 8px;
-  font-size: 0.84rem;
+  font-size: 0.94rem;
 }
 
 .today-action-primary {
@@ -2623,7 +2623,7 @@ body {
 }
 
 .today-action-primary strong {
-  font-size: 0.92rem;
+  font-size: 1rem;
 }
 
 .today-action-secondary,
@@ -2639,7 +2639,7 @@ body {
 
 .today-action-secondary span {
   color: #68766e;
-  font-size: 1rem;
+  font-size: 1.08rem;
 }
 
 .today-action-secondary strong {
@@ -2647,17 +2647,17 @@ body {
 }
 
 .today-action-row {
-  gap: 8px;
+  gap: 10px;
 }
 
 .reopen-button {
   width: auto;
-  min-height: 34px;
+  min-height: 38px;
   justify-self: center;
   border: 0;
   color: #68766e;
   background: transparent;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }
 
 .mockup-view-header {
@@ -2668,7 +2668,7 @@ body {
 
 .mockup-view-header h1 {
   margin: 0;
-  font-size: 1.12rem;
+  font-size: 1.28rem;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -2676,7 +2676,7 @@ body {
 .mockup-view-header p {
   margin: 0;
   color: #68766e;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
 }
 
 .habit-list-section {
@@ -2686,7 +2686,7 @@ body {
 .list-section-title h2,
 .list-section-title > span {
   color: #89958e;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 650;
   letter-spacing: 0.06em;
 }
@@ -2697,7 +2697,7 @@ body {
 
 .compact-habit-item {
   display: block;
-  padding: 11px 0;
+  padding: 13px 0;
   border-bottom: 1px solid #e1e6e2;
 }
 
@@ -2707,20 +2707,20 @@ body {
 }
 
 .habit-list-copy strong {
-  font-size: 0.86rem;
+  font-size: 0.96rem;
   font-weight: 550;
 }
 
 .habit-list-copy small {
   color: #89958e;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
 .habit-list-badge {
   padding: 3px 8px;
   color: #3b6d11;
   background: #eaf3de;
-  font-size: 0.66rem;
+  font-size: 0.73rem;
   font-weight: 650;
 }
 
@@ -2753,13 +2753,13 @@ body {
 
 .capacity-note strong {
   margin-bottom: 4px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 550;
 }
 
 .capacity-note span {
   color: #89958e;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
 .capacity-note:disabled {
@@ -2778,13 +2778,13 @@ body {
 }
 
 .progress-mini-stats strong {
-  font-size: 1.18rem;
+  font-size: 1.28rem;
   font-weight: 600;
 }
 
 .progress-mini-stats span {
   color: #89958e;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
 }
 
 .automaticity-stages {
@@ -2793,10 +2793,10 @@ body {
 }
 
 .automaticity-stages span {
-  min-height: 44px;
-  padding: 7px 4px;
+  min-height: 50px;
+  padding: 8px 4px;
   color: #89958e;
-  font-size: 0.66rem;
+  font-size: 0.72rem;
 }
 
 .automaticity-stages span.active {
@@ -2828,13 +2828,13 @@ body {
 }
 
 .progress-relapse strong {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 650;
 }
 
 .progress-relapse p {
   color: #854f0b;
-  font-size: 0.73rem;
+  font-size: 0.81rem;
   line-height: 1.5;
 }
 
@@ -2851,7 +2851,7 @@ body {
 }
 
 .progress-details summary {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
 }
 
 .progress-details-body > .panel,
@@ -2873,18 +2873,18 @@ body {
 }
 
 .menu-section h2 {
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 @media (max-width: 680px) {
   .workspace {
-    padding: 18px 16px 88px;
+    padding: 20px 18px 98px;
     border: 0;
     box-shadow: none;
   }
 
   .today-habit-card {
-    min-height: 210px;
+    min-height: 218px;
   }
 
   .today-action-row {

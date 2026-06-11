@@ -87,9 +87,9 @@ const onboardingSteps = [
   {
     id: "identity",
     eyebrow: "Identidad",
-    title: "¿Qué identidad quieres reforzar?",
-    why: "La app no busca solo resultados. Cada hábito será un micro-voto por esta identidad.",
-    example: "Soy una persona que cuida su cuerpo.",
+    title: "¿Quién quieres ser?",
+    why: "No lo que harás, sino en qué tipo de persona te convertirás al hacerlo.",
+    example: "Soy alguien que cuida su mente cada mañana.",
   },
   {
     id: "changeTalk",
@@ -152,6 +152,7 @@ const ui = {
   sidebarOpen: false,
   showCloudPanel: false,
   reward: null,
+  confirmation: null,
   dailyNoteDrafts: {},
   urgeHabitId: null,
   explicitDailyHabitId: null,
@@ -429,39 +430,19 @@ function render() {
 }
 
 function renderOnboarding() {
-  const stage = diagnoseStage(state.profile.readiness, state.profile.confidence);
-  const copy = stageCopy[stage];
   const draft = getOnboardingDraft();
   const stepIndex = getOnboardingStepIndex();
   const step = onboardingSteps[stepIndex];
-  const progress = Math.round(((stepIndex + 1) / onboardingSteps.length) * 100);
   const isFinalStep = step.id === "review";
 
   return `
     <main class="onboarding-wrap">
-      <section class="onboarding-panel" aria-labelledby="onboarding-title">
-        <div class="onboarding-hero">
-          <div>
-            <div class="brand">
-              <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260609-loop-icon" alt="" />
-              <div>
-                <h1 id="onboarding-title">Habit Loop Lab</h1>
-                <p>Tracker de identidad, ejecución mínima y automaticidad.</p>
-              </div>
-            </div>
-            <p>
-              Diseña hábitos como micro-votos por la persona que quieres ser.
-              Cada hábito nace con señal, deseo, respuesta mínima y recompensa inmediata.
-            </p>
-          </div>
-          <aside class="diagnosis-card" aria-live="polite">
-            <span class="stage-pill" id="diagnosis-label">${copy.label}</span>
-            <strong id="diagnosis-title">${copy.action}</strong>
-            <p id="diagnosis-body" class="muted">${getStageNudge(stage)}</p>
-          </aside>
-        </div>
-
-        ${renderCloudAccess("onboarding")}
+      <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
+        <header class="onboarding-brand">
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260611-editorial-v3" alt="" />
+          <span id="onboarding-title">Habit Loop Lab</span>
+          <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
+        </header>
         ${ui.showCloudPanel ? renderCloudPanel() : ""}
 
         ${ui.toast ? `<div class="toast onboarding-toast" role="status">${escapeHtml(ui.toast)}</div>` : ""}
@@ -469,8 +450,8 @@ function renderOnboarding() {
         <form id="onboarding-form" class="onboarding-form" data-step="${step.id}">
           <div class="onboarding-progress" aria-label="Progreso del cuestionario">
             <span>Paso ${stepIndex + 1} de ${onboardingSteps.length}</span>
-            <div class="progress-shell">
-              <div class="progress-bar" style="--value: ${progress}%"></div>
+            <div class="onboarding-dots">
+              ${onboardingSteps.map((_, index) => `<i class="${index === stepIndex ? "active" : ""}"></i>`).join("")}
             </div>
           </div>
 
@@ -489,13 +470,9 @@ function renderOnboarding() {
             ${renderOnboardingField(step, draft)}
           </article>
 
-          ${renderOnboardingPreview(draft)}
+          ${step.id === "identity" ? "" : renderOnboardingPreview(draft)}
 
           <div class="form-footer">
-            <p class="fine-print">
-              Autoguardado activo. Puedes recargar la página y seguir donde ibas.
-              <span id="schedule-suggestion">${getScheduleSuggestion(state.profile.chronotype, draft.difficulty)}</span>
-            </p>
             <div class="wizard-actions">
               <button
                 class="button ghost"
@@ -507,7 +484,7 @@ function renderOnboarding() {
               </button>
               ${isFinalStep
                 ? `<button class="button primary" type="submit">Crear mi primer voto</button>`
-                : `<button class="button primary" type="button" data-action="onboarding-next">Siguiente</button>`
+                : `<button class="button primary" type="button" data-action="onboarding-next">Continuar <span aria-hidden="true">→</span></button>`
               }
             </div>
           </div>
@@ -572,7 +549,7 @@ function renderOnboardingField(step, draft) {
           name="identity"
           maxlength="96"
           value="${escapeAttr(state.profile.identity)}"
-          placeholder="Soy una persona que lee antes de dormir"
+          placeholder="Soy alguien que…"
         />
       </label>
     `;
@@ -827,10 +804,10 @@ function renderDashboard() {
 
 function renderAppNavigation() {
   const views = [
-    { id: "today", label: "Hoy", icon: "☼" },
-    { id: "habits", label: "Hábitos", icon: "↻" },
-    { id: "progress", label: "Progreso", icon: "⌁" },
-    { id: "menu", label: "Menú", icon: "≡" },
+    { id: "today", label: "Hoy" },
+    { id: "habits", label: "Hábitos" },
+    { id: "progress", label: "Progreso" },
+    { id: "menu", label: "Menú" },
   ];
 
   return `
@@ -844,7 +821,7 @@ function renderAppNavigation() {
             data-view="${view.id}"
             aria-current="${ui.activeView === view.id ? "page" : "false"}"
           >
-            <span class="nav-icon" aria-hidden="true">${view.icon}</span>
+            <span class="nav-icon" aria-hidden="true">${renderNavIcon(view.id)}</span>
             <span>${view.label}</span>
           </button>
         `).join("")}
@@ -853,25 +830,38 @@ function renderAppNavigation() {
   `;
 }
 
+function renderNavIcon(view) {
+  const icons = {
+    today: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>',
+    habits: '<svg viewBox="0 0 24 24"><path d="M6.7 7.5A7 7 0 0 1 18.9 9"/><path d="M18.9 9V4.8M18.9 9h-4.2M17.3 16.5A7 7 0 0 1 5.1 15"/><path d="M5.1 15v4.2M5.1 15h4.2"/></svg>',
+    progress: '<svg viewBox="0 0 24 24"><path d="M4 18.5V13l4-3.5 4 2.5 7-7"/><path d="M15.5 5H19v3.5"/></svg>',
+    menu: '<svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg>',
+  };
+  return icons[view] || icons.menu;
+}
+
 function renderActiveView(context) {
+  if (ui.confirmation) return renderConfirmation(ui.confirmation);
   if (ui.activeView === "habits") return renderHabitsView(context);
   if (ui.activeView === "progress") return renderProgressView(context.selectedHabit, context.riskyHabits);
   if (ui.activeView === "menu") return renderMenuView(context.averageAutomaticity);
   return renderTodayView(context);
 }
 
-function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday, riskyHabits }) {
-  const pendingToday = trackedHabits.filter((habit) => !hasTodayLog(habit)).length;
+function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday }) {
+  const allCompleted = trackedHabits.length > 0
+    && trackedHabits.every((habit) => getStatusForDate(habit, todayKey()) === "done");
 
   return `
     <section class="view-shell today-view" aria-labelledby="today-title">
-      <header class="mockup-day-header">
-        <span id="today-title">${formatDayLabel(todayKey())} · ${pendingToday} ${pendingToday === 1 ? "pendiente" : "pendientes"}</span>
-        ${renderTodayDots(trackedHabits)}
-      </header>
+      ${allCompleted ? "" : `<header class="mockup-day-header">
+        <span class="section-chip">Hoy</span>
+        <span id="today-title">${formatDayLabel(todayKey())} · ${completedToday} de ${trackedHabits.length}</span>
+      </header>`}
 
-      ${dailyHabit ? renderDailyFocus(dailyHabit, riskyHabits) : renderEmptyState()}
+      ${allCompleted ? renderAllCompleted(trackedHabits) : dailyHabit ? renderDailyFocus(dailyHabit) : renderEmptyState()}
       ${ui.urgeHabitId && urgeHabit ? renderUrgeSurfingPanel(urgeHabit) : ""}
+      ${!allCompleted ? renderTodayDots(trackedHabits) : ""}
       <span class="sr-only">${completedToday}/${trackedHabits.length || 0} micro-votos emitidos hoy.</span>
     </section>
   `;
@@ -894,6 +884,47 @@ function renderTodayDots(habits) {
   `;
 }
 
+function renderConfirmation(confirmation) {
+  const nextHabit = confirmation.nextHabitId
+    ? state.habits.find((habit) => habit.id === confirmation.nextHabitId)
+    : null;
+
+  return `
+    <section class="confirmation-view" aria-live="polite">
+      <div class="confirmation-icon" aria-hidden="true">✓</div>
+      <h1>${confirmation.minimum ? "Mínimo protegido." : "Listo. Ciclo cerrado."}</h1>
+      <p>${confirmation.minimum ? "La constancia también cuenta en pequeño." : "Cada vez un poco más fácil que ayer."}</p>
+      <button class="confirmation-next" type="button" data-action="continue-after-confirmation">
+        <span>${nextHabit ? "Siguiente" : "Por hoy"}</span>
+        <strong>${nextHabit ? escapeHtml(nextHabit.action) : "Todo hecho"}</strong>
+      </button>
+    </section>
+  `;
+}
+
+function renderAllCompleted(habits) {
+  const completion = Math.round(
+    habits.reduce((total, habit) => total + getCompletionRateForDays(habit, 28), 0) / habits.length * 100,
+  );
+  const averageEase = Math.round(
+    habits.reduce((total, habit) => total + getHabitStats(habit).averageEase, 0) / habits.length / 5 * 100,
+  );
+  const historyDays = Math.max(...habits.map((habit) => getHabitStats(habit).ageDays));
+
+  return `
+    <section class="all-completed">
+      <span>${formatDayLabel(todayKey())}</span>
+      <h1 id="today-title">Todo hecho.</h1>
+      <p>${habits.length} ciclos cerrados hoy. Eso es suficiente.</p>
+      <div class="all-completed-stats">
+        <div><strong>${completion}%</strong><span>4 semanas</span></div>
+        <div><strong>${historyDays}</strong><span>días</span></div>
+        <div><strong>${averageEase}%</strong><span>facilidad</span></div>
+      </div>
+    </section>
+  `;
+}
+
 function renderHabitsView({ canAddHabit }) {
   const formationHabits = getFormationHabits();
   const maintenanceHabits = getMaintenanceHabits();
@@ -902,12 +933,11 @@ function renderHabitsView({ canAddHabit }) {
   return `
     <section class="view-shell habits-view" aria-labelledby="habits-view-title">
       <header class="mockup-view-header">
-        <h1 id="habits-view-title">Tus hábitos</h1>
-        <p>${formationHabits.length} en formación · ${maintenanceHabits.length} en mantenimiento</p>
+        <span class="section-chip" id="habits-view-title">Hábitos</span>
+        <p>${formationHabits.length} / ${MAX_HABITS} espacios</p>
       </header>
 
-      ${renderCompactHabitGroup("En formación", formationHabits, `${formationHabits.length}/${MAX_HABITS}`)}
-      ${renderCompactHabitGroup("Mantenimiento", maintenanceHabits, `${maintenanceHabits.length}`)}
+      ${renderCompactHabitGroup("En formación", formationHabits)}
 
       <button
         class="capacity-note ${freeSlots ? "" : "full"}"
@@ -916,22 +946,23 @@ function renderHabitsView({ canAddHabit }) {
         title="${canAddHabit ? "Crear un nuevo hábito en formación" : "Pasa un hábito listo a mantenimiento para abrir espacio"}"
         ${canAddHabit ? "" : "disabled"}
       >
-        <strong>${freeSlots ? "Espacio libre en formación" : "Capacidad de formación completa"}</strong>
+        <strong>${freeSlots ? "+ Añadir hábito" : "Capacidad de formación completa"}</strong>
         <span>${freeSlots
           ? `Puedes añadir ${freeSlots} ${freeSlots === 1 ? "hábito" : "hábitos"} más.`
           : "Pasa un hábito listo a mantenimiento para abrir espacio."
         }</span>
       </button>
+
+      ${renderCompactHabitGroup("Mantenimiento", maintenanceHabits)}
     </section>
   `;
 }
 
-function renderCompactHabitGroup(title, habits, tag) {
+function renderCompactHabitGroup(title, habits) {
   return `
     <section class="habit-list-section" aria-label="${escapeAttr(title)}">
       <div class="list-section-title">
-        <h2>${escapeHtml(title)}${title === "En formación" ? ` (${tag})` : ""}</h2>
-        ${title === "En formación" ? "" : `<span>${tag}</span>`}
+        <h2>${escapeHtml(title)}</h2>
       </div>
       ${habits.length
         ? `<div class="compact-habit-list">${habits.map(renderCompactHabitItem).join("")}</div>`
@@ -941,21 +972,20 @@ function renderCompactHabitGroup(title, habits, tag) {
   `;
 }
 
-function renderCompactHabitItem(habit) {
+function renderCompactHabitItem(habit, index) {
   const stats = getHabitStats(habit);
-  const status = getStatusForDate(habit, todayKey());
   const lifecycle = getHabitLifecycle(habit);
 
   return `
     <article class="compact-habit-item ${lifecycle}">
       <button class="habit-list-main" type="button" data-action="view-progress" data-id="${habit.id}">
-        <span class="habit-state-dot ${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "maintenance" : status}"></span>
+        <span class="habit-list-number">${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "—" : String(index + 1).padStart(2, "0")}</span>
         <span class="habit-list-copy">
           <strong>${escapeHtml(habit.action)}</strong>
           <small>Después de ${escapeHtml(habit.anchor)} · ${stats.ageDays} días</small>
         </span>
         <span class="habit-list-badge ${lifecycle}">
-          ${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "Automático" : `${Math.round((stats.averageEase / 5) * 100)}% facilidad`}
+          ${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "Auto" : `${Math.round((stats.averageEase / 5) * 100)}%`}
         </span>
       </button>
     </article>
@@ -977,10 +1007,13 @@ function renderProgressView(habit, riskyHabits = []) {
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
-      <header class="mockup-view-header">
+      <header class="mockup-view-header progress-heading">
+        <span class="section-chip">Progreso</span>
+      </header>
+      <div class="progress-title">
         <h1 id="progress-view-title">${escapeHtml(habit.action)}</h1>
         <p>${stats.ageDays} días de historia</p>
-      </header>
+      </div>
 
       <div class="progress-mini-stats">
         <div><strong>${completion}%</strong><span>Últimas 4 sem.</span></div>
@@ -1081,7 +1114,7 @@ function renderProgressRelapse(habit, missStreak) {
       <strong>${missStreak >= 2 ? "Protege el mínimo hoy" : "Ayer fue información"}</strong>
       <p>No una sentencia. Haz la versión mínima para evitar que una falla se convierta en patrón.</p>
       <button class="button rescue" type="button" data-action="go-today" data-id="${habit.id}">
-        Registrar hoy
+        Registrar ahora →
       </button>
     </section>
   `;
@@ -1113,13 +1146,8 @@ function renderMenuView(averageAutomaticity) {
   return `
     <section class="view-shell menu-view" aria-labelledby="menu-view-title">
       <header class="view-header">
-        <div class="brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260609-loop-icon" alt="" />
-          <div>
-            <p class="date-kicker">Configuración y contexto</p>
-            <h1 id="menu-view-title">Habit Loop Lab</h1>
-          </div>
-        </div>
+        <span class="section-chip">Menú</span>
+        <h1 id="menu-view-title">Habit Loop Lab</h1>
       </header>
 
       <div class="menu-grid">
@@ -1163,7 +1191,7 @@ function renderMenuView(averageAutomaticity) {
   `;
 }
 
-function renderDailyFocus(habit, riskyHabits = []) {
+function renderDailyFocus(habit) {
   const todayStatus = getStatusForDate(habit, todayKey());
   const stats = getHabitStats(habit);
   const ease = Math.round((stats.averageEase / 5) * 100);
@@ -1172,14 +1200,17 @@ function renderDailyFocus(habit, riskyHabits = []) {
 
   return `
     <section class="daily-focus" aria-labelledby="daily-action-title">
-      <span class="identity-chip">${escapeHtml(habit.identity)}</span>
+      <article class="identity-card">
+        <span>Soy</span>
+        <p>${escapeHtml(stripIdentityPrefix(habit.identity))}</p>
+      </article>
 
       <article class="today-habit-card">
-        <span class="today-anchor">después de ${escapeHtml(habit.anchor)} →</span>
+        <span class="today-anchor"><i></i>Después de ${escapeHtml(habit.anchor)}</span>
         <h2 id="daily-action-title">${escapeHtml(habit.action)}</h2>
         <div class="today-desired-state">
-          <span aria-hidden="true">✦</span>
-          <p>Quiero sentir <strong>${escapeHtml(habit.desiredState)}</strong></p>
+          <i></i>
+          <p>para sentir ${escapeHtml(habit.desiredState)}</p>
         </div>
       </article>
 
@@ -1191,11 +1222,11 @@ function renderDailyFocus(habit, riskyHabits = []) {
 
       ${!actionDisabled ? `
         <label class="daily-note-field">
-          <span>Descripción opcional</span>
+          <span>Nota — opcional</span>
           <textarea
             data-daily-note-for="${escapeAttr(habit.id)}"
             maxlength="240"
-            placeholder="¿Qué pasó hoy? Puedes dejar una nota breve."
+            placeholder="¿Cómo fue hoy?"
           >${escapeHtml(dailyNote)}</textarea>
         </label>
       ` : ""}
@@ -1217,12 +1248,16 @@ function renderDailyFocus(habit, riskyHabits = []) {
         </div>
         <button class="today-action-secondary urge" type="button" data-action="open-urge" data-id="${habit.id}">
           <span aria-hidden="true">∿</span>
-          <strong>Impulso fuerte — urge surfing</strong>
+          <strong>Impulso fuerte</strong>
         </button>
         ${todayStatus !== "open" ? `<button class="button ghost reopen-button" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir registro de hoy</button>` : ""}
       </div>
     </section>
   `;
+}
+
+function stripIdentityPrefix(identity) {
+  return cleanText(identity).replace(/^soy\s+/i, "");
 }
 
 function renderUrgeSurfingPanel(habit) {
@@ -1664,12 +1699,14 @@ function handleClick(event) {
   const id = button.dataset.id;
 
   if (action === "switch-view") {
+    ui.confirmation = null;
     ui.activeView = button.dataset.view || "today";
     updateViewHash(ui.activeView);
     render();
   }
 
   if (action === "select-today-habit" || action === "go-today") {
+    ui.confirmation = null;
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
     ui.activeView = "today";
@@ -1679,6 +1716,7 @@ function handleClick(event) {
   }
 
   if (action === "view-progress") {
+    ui.confirmation = null;
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
     ui.activeView = "progress";
@@ -1806,6 +1844,11 @@ function handleClick(event) {
 
   if (action === "dismiss-reward") {
     ui.reward = null;
+    render();
+  }
+
+  if (action === "continue-after-confirmation") {
+    ui.confirmation = null;
     render();
   }
 
@@ -2172,7 +2215,7 @@ function logHabit(id, status, options = {}) {
 
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
-  const nextDailyHabit = getDailyPriorityHabit();
+  const nextDailyHabit = getDailyPriorityHabit() || getTrackedHabits().find((item) => !hasTodayLog(item));
   state.selectedHabitId = nextDailyHabit?.id || id;
 
   if (status === "done") {
@@ -2183,11 +2226,17 @@ function logHabit(id, status, options = {}) {
       reward.prompt = "Siente el alivio de haber mantenido el ciclo.";
     }
     ui.reward = null;
+    ui.confirmation = {
+      habitId: habit.id,
+      minimum: Boolean(options.minimum),
+      nextHabitId: nextDailyHabit?.id || null,
+    };
     state.rewardHistory.unshift({ ...reward, habitId: habit.id, at: new Date().toISOString() });
     state.rewardHistory = state.rewardHistory.slice(0, 20);
-    showToast(options.minimum ? "Versión mínima registrada con éxito. Dashboard actualizado." : "Registro guardado con éxito. Dashboard actualizado.");
+    ui.toast = "";
   } else {
     ui.reward = null;
+    ui.confirmation = null;
     state.reflections.unshift({
       habitId: habit.id,
       text: "Lapse reframed as learning data",
@@ -2218,6 +2267,7 @@ function undoToday(id) {
     [deletedLogKey]: new Date().toISOString(),
   };
   ui.reward = null;
+  ui.confirmation = null;
   ui.explicitDailyHabitId = id;
   state.selectedHabitId = id;
   showToast("Registro de hoy deshecho.");
@@ -2801,6 +2851,7 @@ function clearLocalUserDataAfterLogout() {
   ui.sidebarOpen = false;
   ui.showCloudPanel = false;
   ui.reward = null;
+  ui.confirmation = null;
   ui.dailyNoteDrafts = {};
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;

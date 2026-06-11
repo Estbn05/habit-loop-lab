@@ -50,13 +50,13 @@ function iconPixel(x, y, size) {
   const unit = size / 56;
   const px = (x + 0.5) / unit;
   const py = (y + 0.5) / unit;
-  const green = [29, 158, 117, 255];
-  const white = [255, 255, 255, 255];
+  const matte = [26, 26, 26, 255];
+  const cream = [247, 245, 240, 255];
 
-  if (insideCircle(px, py, 14.5, 44, 5.5)) return white;
-  if (insideCircle(px, py, 28, 28, 3)) return mixRgba(green, white, 0.28);
-  if (insideLoopStroke(px, py)) return white;
-  return green;
+  if (insideCircle(px, py, 14.5, 44, 5.5)) return cream;
+  if (insideCircle(px, py, 28, 28, 3)) return mixRgba(matte, cream, 0.28);
+  if (insideLoopStroke(px, py)) return cream;
+  return matte;
 }
 
 function insideLoopStroke(x, y) {

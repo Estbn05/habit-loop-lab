@@ -20,11 +20,15 @@ try {
   const checks = [
     ["/", "manifest.webmanifest"],
     ["/app.js", "renderAppNavigation"],
+    ["/app.js", "renderConfirmation"],
+    ["/app.js", "renderAllCompleted"],
     ["/app.js", "getDailyNoteDraft"],
     ["/app.js", "clearLocalUserDataAfterLogout"],
     ["/app.js", "deletedLogTimes"],
     ["/app.js", "shouldDeleteLog"],
     ["/styles.css", "automaticity-stages"],
+    ["/styles.css", "V3 editorial mockup system"],
+    ["/styles.css", "identity-card"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],
   ];

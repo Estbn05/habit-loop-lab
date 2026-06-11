@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-labelledby="title desc">
   <title id="title">Habit Loop Lab icon</title>
   <desc id="desc">Open habit loop with a completion node.</desc>
-  <rect width="56" height="56" rx="16" fill="#1D9E75" />
+  <rect width="56" height="56" rx="16" fill="#1A1A1A" />
   <path
     d="M28 9 A19 19 0 1 1 14.5 44"
     fill="none"
-    stroke="#fff"
+    stroke="#F7F5F0"
     stroke-linecap="round"
     stroke-width="3.5"
   />
-  <circle cx="14.5" cy="44" r="5.5" fill="#fff" />
-  <circle cx="28" cy="28" r="3" fill="#fff" fill-opacity=".28" />
+  <circle cx="14.5" cy="44" r="5.5" fill="#F7F5F0" />
+  <circle cx="28" cy="28" r="3" fill="#F7F5F0" fill-opacity=".28" />
 </svg>

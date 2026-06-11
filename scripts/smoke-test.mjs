@@ -22,6 +22,8 @@ try {
     ["/app.js", "renderAppNavigation"],
     ["/app.js", "getDailyNoteDraft"],
     ["/app.js", "clearLocalUserDataAfterLogout"],
+    ["/app.js", "deletedLogTimes"],
+    ["/app.js", "shouldDeleteLog"],
     ["/styles.css", "automaticity-stages"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],

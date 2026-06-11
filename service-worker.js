@@ -1,9 +1,9 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260610-inline-daily-note";
+const CACHE_NAME = "habit-loop-lab-pwa-20260610-persistent-logs";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=20260610-inline-daily-note",
-  "./app.js?v=20260610-inline-daily-note",
+  "./app.js?v=20260610-persistent-logs",
   "./manifest.webmanifest?v=20260609-loop-icon",
   "./assets/icons/app-icon.svg?v=20260609-loop-icon",
   "./assets/icons/icon-180.png?v=20260609-loop-icon",

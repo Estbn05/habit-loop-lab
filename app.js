@@ -214,6 +214,7 @@ function createFallbackState() {
     selectedHabitId: null,
     deletedHabitIds: [],
     deletedLogKeys: [],
+    deletedLogTimes: {},
     rewardHistory: [],
     reflections: [],
   };
@@ -239,6 +240,7 @@ function normalizeState(candidate, fallback = createFallbackState()) {
   const deletedLogKeys = Array.isArray(parsed.deletedLogKeys)
     ? [...new Set(parsed.deletedLogKeys.filter(Boolean).map(String))]
     : [];
+  const deletedLogTimes = normalizeDeletedLogTimes(parsed.deletedLogTimes);
 
   return {
     ...fallback,
@@ -252,14 +254,25 @@ function normalizeState(candidate, fallback = createFallbackState()) {
       },
     },
     habits: Array.isArray(parsed.habits)
-      ? parsed.habits.map(normalizeHabit).filter(Boolean).map((habit) => pruneDeletedLogs(habit, deletedLogKeys))
+      ? parsed.habits.map(normalizeHabit).filter(Boolean).map((habit) => pruneDeletedLogs(habit, deletedLogKeys, deletedLogTimes))
       : [],
     selectedHabitId: parsed.selectedHabitId || null,
     deletedHabitIds,
     deletedLogKeys,
+    deletedLogTimes,
     rewardHistory: Array.isArray(parsed.rewardHistory) ? parsed.rewardHistory : [],
     reflections: Array.isArray(parsed.reflections) ? parsed.reflections : [],
   };
+}
+
+function normalizeDeletedLogTimes(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key, timestamp]) => key && Number.isFinite(Date.parse(timestamp)))
+      .map(([key, timestamp]) => [String(key), String(timestamp)]),
+  );
 }
 
 function normalizeHabit(habit) {
@@ -2152,7 +2165,9 @@ function logHabit(id, status, options = {}) {
     at: loggedAt,
     updatedAt: loggedAt,
   };
+  const logKey = getDeletedLogKey(id, todayKey());
   state.deletedLogKeys = removeDeletedLogKey(state.deletedLogKeys, id, todayKey());
+  delete state.deletedLogTimes?.[logKey];
   delete ui.dailyNoteDrafts[id];
 
   ui.urgeHabitId = null;
@@ -2196,7 +2211,12 @@ function undoToday(id) {
   if (!habit?.logs) return;
   if (habit.logs[todayKey()]?.note) ui.dailyNoteDrafts[id] = habit.logs[todayKey()].note;
   delete habit.logs[todayKey()];
-  state.deletedLogKeys = [...new Set([...(state.deletedLogKeys || []), getDeletedLogKey(id, todayKey())])];
+  const deletedLogKey = getDeletedLogKey(id, todayKey());
+  state.deletedLogKeys = [...new Set([...(state.deletedLogKeys || []), deletedLogKey])];
+  state.deletedLogTimes = {
+    ...(state.deletedLogTimes || {}),
+    [deletedLogKey]: new Date().toISOString(),
+  };
   ui.reward = null;
   ui.explicitDailyHabitId = id;
   state.selectedHabitId = id;
@@ -2971,7 +2991,9 @@ function mergeStateSnapshots(localSnapshot, remoteSnapshot, remoteUpdatedAt = ""
     ...(local.deletedLogKeys || []),
     ...(remote.deletedLogKeys || []),
   ].map(String))];
-  const habits = mergeHabitLists(local.habits, remote.habits, deletedHabitIds, deletedLogKeys);
+  const deletedLogTimes = mergeDeletedLogTimes(local.deletedLogTimes, remote.deletedLogTimes);
+  const habits = mergeHabitLists(local.habits, remote.habits, deletedHabitIds, deletedLogKeys, deletedLogTimes);
+  const activeLogTombstones = resolveDeletedLogTombstones(habits, deletedLogKeys, deletedLogTimes);
   const selectedHabitId = habits.some((habit) => habit.id === preferred.selectedHabitId)
     ? preferred.selectedHabitId
     : habits.some((habit) => habit.id === secondary.selectedHabitId)
@@ -2992,21 +3014,33 @@ function mergeStateSnapshots(localSnapshot, remoteSnapshot, remoteUpdatedAt = ""
     habits,
     selectedHabitId,
     deletedHabitIds,
-    deletedLogKeys,
+    deletedLogKeys: activeLogTombstones.keys,
+    deletedLogTimes: activeLogTombstones.times,
     rewardHistory: mergeTimeline(local.rewardHistory, remote.rewardHistory, 20),
     reflections: mergeTimeline(local.reflections, remote.reflections, 20),
     updatedAt: new Date().toISOString(),
   };
 }
 
-function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = [], deletedLogKeys = []) {
+function mergeHabitLists(
+  localHabits = [],
+  remoteHabits = [],
+  deletedHabitIds = [],
+  deletedLogKeys = [],
+  deletedLogTimes = {},
+) {
   const deleted = new Set(deletedHabitIds);
   const merged = new Map();
 
   for (const habit of [...localHabits, ...remoteHabits]) {
     if (!habit || deleted.has(String(habit.id))) continue;
     const existing = merged.get(habit.id);
-    merged.set(habit.id, existing ? mergeHabit(existing, habit, deletedLogKeys) : pruneDeletedLogs(normalizeHabit(habit), deletedLogKeys));
+    merged.set(
+      habit.id,
+      existing
+        ? mergeHabit(existing, habit, deletedLogKeys, deletedLogTimes)
+        : pruneDeletedLogs(normalizeHabit(habit), deletedLogKeys, deletedLogTimes),
+    );
   }
 
   return [...merged.values()].sort((a, b) => {
@@ -3016,7 +3050,7 @@ function mergeHabitLists(localHabits = [], remoteHabits = [], deletedHabitIds = 
   });
 }
 
-function mergeHabit(firstHabit, secondHabit, deletedLogKeys = []) {
+function mergeHabit(firstHabit, secondHabit, deletedLogKeys = [], deletedLogTimes = {}) {
   const first = normalizeHabit(firstHabit);
   const second = normalizeHabit(secondHabit);
   const firstTime = getHabitChangeTime(first);
@@ -3028,32 +3062,72 @@ function mergeHabit(firstHabit, secondHabit, deletedLogKeys = []) {
     ...secondary,
     ...preferred,
     lifecycle: preferred.lifecycle || secondary.lifecycle || HABIT_LIFECYCLE.FORMATION,
-    logs: mergeLogs(secondary.logs, preferred.logs, preferred.id, deletedLogKeys),
+    logs: mergeLogs(secondary.logs, preferred.logs, preferred.id, deletedLogKeys, deletedLogTimes),
   };
 }
 
-function pruneDeletedLogs(habit, deletedLogKeys = []) {
+function pruneDeletedLogs(habit, deletedLogKeys = [], deletedLogTimes = {}) {
   if (!habit) return null;
   const deleted = new Set(deletedLogKeys);
   return {
     ...habit,
     logs: Object.fromEntries(
-      Object.entries(habit.logs || {}).filter(([dateKey]) => !deleted.has(getDeletedLogKey(habit.id, dateKey))),
+      Object.entries(habit.logs || {}).filter(([dateKey, log]) => (
+        !shouldDeleteLog(habit.id, dateKey, log, deleted, deletedLogTimes)
+      )),
     ),
   };
 }
 
-function mergeLogs(firstLogs = {}, secondLogs = {}, habitId = "", deletedLogKeys = []) {
+function mergeLogs(firstLogs = {}, secondLogs = {}, habitId = "", deletedLogKeys = [], deletedLogTimes = {}) {
   const first = normalizeLogs(firstLogs);
   const second = normalizeLogs(secondLogs);
   const deleted = new Set(deletedLogKeys);
   const dates = [...new Set([...Object.keys(first), ...Object.keys(second)])];
 
   return dates.reduce((result, dateKey) => {
-    if (habitId && deleted.has(getDeletedLogKey(habitId, dateKey))) return result;
-    result[dateKey] = mergeLogEntries(first[dateKey], second[dateKey]);
+    const mergedLog = mergeLogEntries(first[dateKey], second[dateKey]);
+    if (habitId && shouldDeleteLog(habitId, dateKey, mergedLog, deleted, deletedLogTimes)) return result;
+    result[dateKey] = mergedLog;
     return result;
   }, {});
+}
+
+function mergeDeletedLogTimes(firstTimes = {}, secondTimes = {}) {
+  const first = normalizeDeletedLogTimes(firstTimes);
+  const second = normalizeDeletedLogTimes(secondTimes);
+  const keys = [...new Set([...Object.keys(first), ...Object.keys(second)])];
+
+  return Object.fromEntries(keys.map((key) => {
+    const firstTime = Date.parse(first[key] || "") || 0;
+    const secondTime = Date.parse(second[key] || "") || 0;
+    return [key, firstTime >= secondTime ? first[key] : second[key]];
+  }).filter(([, timestamp]) => timestamp));
+}
+
+function resolveDeletedLogTombstones(habits, deletedLogKeys = [], deletedLogTimes = {}) {
+  const times = normalizeDeletedLogTimes(deletedLogTimes);
+  const keys = [...new Set(deletedLogKeys.map(String))].filter((key) => {
+    const separator = key.lastIndexOf(":");
+    if (separator < 0) return true;
+    const habitId = key.slice(0, separator);
+    const dateKey = key.slice(separator + 1);
+    const log = habits.find((habit) => habit.id === habitId)?.logs?.[dateKey];
+    return !log || shouldDeleteLog(habitId, dateKey, log, new Set([key]), times);
+  });
+
+  return {
+    keys,
+    times: Object.fromEntries(keys.filter((key) => times[key]).map((key) => [key, times[key]])),
+  };
+}
+
+function shouldDeleteLog(habitId, dateKey, log, deletedKeys, deletedLogTimes = {}) {
+  const key = getDeletedLogKey(habitId, dateKey);
+  if (!deletedKeys.has(key)) return false;
+  const deletedAt = Date.parse(deletedLogTimes[key] || "") || 0;
+  const loggedAt = Date.parse(log?.updatedAt || log?.at || "") || 0;
+  return deletedAt >= loggedAt;
 }
 
 function mergeLogEntries(firstEntry, secondEntry) {

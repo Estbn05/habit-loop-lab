@@ -58,6 +58,7 @@ The app is based on behavioral design concepts such as:
 - Optional Supabase authentication with automatic sync after login, local changes, reconnecting, and returning to the app.
 - Local habit data is removed from the device after signing out while the cloud copy remains available.
 - Non-destructive cloud merge, so one device should not erase habits or logs from another device during sync.
+- Timestamped log deletions, so reopening an old record cannot erase a newer completion after reload.
 - Installable PWA experience with manifest, service worker, app icons, and offline app-shell caching.
 
 ## Behavioral Coherence

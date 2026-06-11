@@ -20,6 +20,8 @@ try {
   const checks = [
     ["/", "manifest.webmanifest"],
     ["/app.js", "renderAppNavigation"],
+    ["/app.js", "renderDailyNotePrompt"],
+    ["/app.js", "clearLocalUserDataAfterLogout"],
     ["/styles.css", "automaticity-stages"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],

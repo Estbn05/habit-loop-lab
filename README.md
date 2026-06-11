@@ -46,6 +46,7 @@ The app is based on behavioral design concepts such as:
 - Four focused views: Today, Habits, Progress, and Menu, with bottom navigation on mobile.
 - Collapsible explanations for users who want the behavioral reasoning without adding daily friction.
 - One-tap micro-vote logging.
+- Optional descriptions after completion, with recent notes visible in habit progress.
 - Lapse logging without shame.
 - Never-miss-twice recovery panel.
 - Variable RPE-inspired feedback.
@@ -55,6 +56,7 @@ The app is based on behavioral design concepts such as:
 - Reminder fading as habits become more automatic.
 - Local-first persistence with `localStorage`.
 - Optional Supabase authentication with automatic sync after login, local changes, reconnecting, and returning to the app.
+- Local habit data is removed from the device after signing out while the cloud copy remains available.
 - Non-destructive cloud merge, so one device should not erase habits or logs from another device during sync.
 - Installable PWA experience with manifest, service worker, app icons, and offline app-shell caching.
 

@@ -927,6 +927,47 @@ select:focus-visible {
   color: #704c06;
 }
 
+.daily-note-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  border-color: rgba(29, 158, 117, 0.3);
+  background: #f6fbf8;
+}
+
+.daily-note-panel form {
+  display: grid;
+  gap: 12px;
+}
+
+.daily-note-panel textarea {
+  min-height: 84px;
+}
+
+.habit-note-list {
+  display: grid;
+  gap: 8px;
+}
+
+.habit-note-item {
+  padding: 12px;
+  border: 1px solid #e1e6e2;
+  border-radius: 8px;
+  background: #f6f8f6;
+}
+
+.habit-note-item span {
+  color: #68766e;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.habit-note-item p {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .relapse-panel {
   border-color: rgba(199, 85, 62, 0.28);
   background:

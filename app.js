@@ -152,7 +152,7 @@ const ui = {
   sidebarOpen: false,
   showCloudPanel: false,
   reward: null,
-  notePrompt: null,
+  dailyNoteDrafts: {},
   urgeHabitId: null,
   explicitDailyHabitId: null,
   toast: "",
@@ -793,7 +793,6 @@ function renderDashboard() {
       <main class="workspace">
         ${ui.toast ? `<div class="toast" role="status">${escapeHtml(ui.toast)}</div>` : ""}
         ${ui.reward ? renderReward(ui.reward) : ""}
-        ${ui.notePrompt ? renderDailyNotePrompt(ui.notePrompt) : ""}
         ${ui.showCloudPanel ? renderCloudPanel() : ""}
         ${ui.showHabitForm ? renderHabitForm() : ""}
 
@@ -1019,11 +1018,6 @@ function renderProgressView(habit, riskyHabits = []) {
                 ${todayLog?.status ? "Ver hoy" : "Registrar hoy"}
               </button>
               ${renderLifecycleAction(habit, readiness)}
-              ${todayLog?.status === "done" ? `
-                <button class="button ghost" type="button" data-action="open-note" data-id="${habit.id}">
-                  ${todayLog.note ? "Editar nota de hoy" : "Añadir nota de hoy"}
-                </button>
-              ` : ""}
               ${todayLog?.status ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
               <button class="button ghost" type="button" data-action="edit-habit" data-id="${habit.id}">Editar</button>
               <button class="button warning" type="button" data-action="delete-habit" data-id="${habit.id}">Eliminar</button>
@@ -1161,6 +1155,7 @@ function renderDailyFocus(habit, riskyHabits = []) {
   const stats = getHabitStats(habit);
   const ease = Math.round((stats.averageEase / 5) * 100);
   const actionDisabled = todayStatus === "done";
+  const dailyNote = ui.dailyNoteDrafts[habit.id] ?? habit.logs?.[todayKey()]?.note ?? "";
 
   return `
     <section class="daily-focus" aria-labelledby="daily-action-title">
@@ -1180,6 +1175,17 @@ function renderDailyFocus(habit, riskyHabits = []) {
         <div><i style="--value:${ease}%"></i></div>
         <strong>${ease}%</strong>
       </div>
+
+      ${!actionDisabled ? `
+        <label class="daily-note-field">
+          <span>Descripción opcional</span>
+          <textarea
+            data-daily-note-for="${escapeAttr(habit.id)}"
+            maxlength="240"
+            placeholder="¿Qué pasó hoy? Puedes dejar una nota breve."
+          >${escapeHtml(dailyNote)}</textarea>
+        </label>
+      ` : ""}
 
       <div class="today-actions" aria-label="Registro diario">
         <button class="today-action-primary" type="button" data-action="log-done" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
@@ -1479,37 +1485,6 @@ function renderReward(reward) {
   `;
 }
 
-function renderDailyNotePrompt(prompt) {
-  const habit = state.habits.find((item) => item.id === prompt.habitId);
-  const log = habit?.logs?.[prompt.dateKey];
-  if (!habit || !log) return "";
-
-  return `
-    <section class="panel daily-note-panel" aria-labelledby="daily-note-title">
-      <div class="section-title">
-        <div>
-          <h2 id="daily-note-title">Registro guardado</h2>
-          <p>Añade una descripción opcional para recordar cómo fue ${escapeHtml(habit.action)}.</p>
-        </div>
-        <button class="icon-button" type="button" data-action="dismiss-note" aria-label="Omitir descripción">×</button>
-      </div>
-      <form id="daily-note-form" data-habit-id="${escapeAttr(habit.id)}" data-date-key="${escapeAttr(prompt.dateKey)}">
-        <label class="form-field">
-          Descripción opcional
-          <textarea name="note" maxlength="240" placeholder="Ejemplo: lo hice antes de salir y se sintió más fácil que ayer.">${escapeHtml(log.note || "")}</textarea>
-        </label>
-        <div class="form-footer">
-          <p class="fine-print">El hábito ya quedó registrado. Puedes omitir esta nota.</p>
-          <div class="button-row">
-            <button class="button ghost" type="button" data-action="dismiss-note">Ahora no</button>
-            <button class="button primary" type="submit">Guardar descripción</button>
-          </div>
-        </div>
-      </form>
-    </section>
-  `;
-}
-
 function renderMetrics(completedToday, averageAutomaticity, trackedHabits = getTrackedHabits()) {
   const total = trackedHabits.length || 1;
   const formationCount = getFormationHabits().length;
@@ -1801,15 +1776,15 @@ function handleClick(event) {
   }
 
   if (action === "log-done") {
-    logHabit(id, "done");
+    logHabit(id, "done", { note: getDailyNoteDraft(id) });
   }
 
   if (action === "log-minimum") {
-    logHabit(id, "done", { minimum: true, ease: 2 });
+    logHabit(id, "done", { minimum: true, ease: 2, note: getDailyNoteDraft(id) });
   }
 
   if (action === "log-missed") {
-    logHabit(id, "missed");
+    logHabit(id, "missed", { note: getDailyNoteDraft(id) });
   }
 
   if (action === "undo-log") {
@@ -1818,18 +1793,6 @@ function handleClick(event) {
 
   if (action === "dismiss-reward") {
     ui.reward = null;
-    render();
-  }
-
-  if (action === "dismiss-note") {
-    ui.notePrompt = null;
-    render();
-  }
-
-  if (action === "open-note") {
-    const habit = state.habits.find((item) => item.id === id);
-    if (!habit?.logs?.[todayKey()]) return;
-    ui.notePrompt = { habitId: id, dateKey: todayKey() };
     render();
   }
 
@@ -1922,21 +1885,6 @@ async function handleSubmit(event) {
     });
   }
 
-  if (event.target.id === "daily-note-form") {
-    const form = new FormData(event.target);
-    const habit = state.habits.find((item) => item.id === event.target.dataset.habitId);
-    const log = habit?.logs?.[event.target.dataset.dateKey];
-    if (!log) return;
-
-    log.note = cleanText(form.get("note"));
-    log.updatedAt = new Date().toISOString();
-    ui.notePrompt = null;
-    saveState();
-    showToast(log.note ? "Descripción guardada en el progreso." : "Registro guardado sin descripción.");
-    render();
-    return;
-  }
-
   if (event.target.id === "habit-form") {
     const form = new FormData(event.target);
     const editingId = event.target.dataset.editing;
@@ -1972,6 +1920,10 @@ async function handleSubmit(event) {
 }
 
 function handleInput(event) {
+  if (event.target.matches("[data-daily-note-for]")) {
+    ui.dailyNoteDrafts[event.target.dataset.dailyNoteFor] = event.target.value;
+  }
+
   if (event.target.id === "readiness" || event.target.id === "confidence") {
     updateDiagnosisPreview();
   }
@@ -2201,6 +2153,7 @@ function logHabit(id, status, options = {}) {
     updatedAt: loggedAt,
   };
   state.deletedLogKeys = removeDeletedLogKey(state.deletedLogKeys, id, todayKey());
+  delete ui.dailyNoteDrafts[id];
 
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
@@ -2215,13 +2168,11 @@ function logHabit(id, status, options = {}) {
       reward.prompt = "Siente el alivio de haber mantenido el ciclo.";
     }
     ui.reward = null;
-    ui.notePrompt = { habitId: habit.id, dateKey: todayKey() };
     state.rewardHistory.unshift({ ...reward, habitId: habit.id, at: new Date().toISOString() });
     state.rewardHistory = state.rewardHistory.slice(0, 20);
     showToast(options.minimum ? "Versión mínima registrada con éxito. Dashboard actualizado." : "Registro guardado con éxito. Dashboard actualizado.");
   } else {
     ui.reward = null;
-    ui.notePrompt = null;
     state.reflections.unshift({
       habitId: habit.id,
       text: "Lapse reframed as learning data",
@@ -2235,13 +2186,18 @@ function logHabit(id, status, options = {}) {
   render();
 }
 
+function getDailyNoteDraft(habitId) {
+  const field = document.querySelector(`[data-daily-note-for="${CSS.escape(habitId)}"]`);
+  return cleanText(field?.value ?? ui.dailyNoteDrafts[habitId] ?? "");
+}
+
 function undoToday(id) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit?.logs) return;
+  if (habit.logs[todayKey()]?.note) ui.dailyNoteDrafts[id] = habit.logs[todayKey()].note;
   delete habit.logs[todayKey()];
   state.deletedLogKeys = [...new Set([...(state.deletedLogKeys || []), getDeletedLogKey(id, todayKey())])];
   ui.reward = null;
-  ui.notePrompt = null;
   ui.explicitDailyHabitId = id;
   state.selectedHabitId = id;
   showToast("Registro de hoy deshecho.");
@@ -2825,7 +2781,7 @@ function clearLocalUserDataAfterLogout() {
   ui.sidebarOpen = false;
   ui.showCloudPanel = false;
   ui.reward = null;
-  ui.notePrompt = null;
+  ui.dailyNoteDrafts = {};
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
   ui.toast = "";

@@ -20,7 +20,7 @@ try {
   const checks = [
     ["/", "manifest.webmanifest"],
     ["/app.js", "renderAppNavigation"],
-    ["/app.js", "renderDailyNotePrompt"],
+    ["/app.js", "getDailyNoteDraft"],
     ["/app.js", "clearLocalUserDataAfterLogout"],
     ["/styles.css", "automaticity-stages"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],

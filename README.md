@@ -46,7 +46,7 @@ The app is based on behavioral design concepts such as:
 - Four focused views: Today, Habits, Progress, and Menu, with bottom navigation on mobile.
 - Collapsible explanations for users who want the behavioral reasoning without adding daily friction.
 - One-tap micro-vote logging.
-- Optional descriptions after completion, with recent notes visible in habit progress.
+- Optional descriptions before daily registration, with recent notes visible in habit progress.
 - Lapse logging without shame.
 - Never-miss-twice recovery panel.
 - Variable RPE-inspired feedback.

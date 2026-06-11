@@ -927,21 +927,22 @@ select:focus-visible {
   color: #704c06;
 }
 
-.daily-note-panel {
+.daily-note-field {
   display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-  border-color: rgba(29, 158, 117, 0.3);
-  background: #f6fbf8;
+  gap: 7px;
+  color: #68766e;
+  font-size: 0.78rem;
+  font-weight: 650;
 }
 
-.daily-note-panel form {
-  display: grid;
-  gap: 12px;
-}
-
-.daily-note-panel textarea {
-  min-height: 84px;
+.daily-note-field textarea {
+  min-height: 66px;
+  padding: 10px 12px;
+  color: #25332c;
+  background: #f6f8f6;
+  font-size: 0.88rem;
+  font-weight: 450;
+  resize: vertical;
 }
 
 .habit-note-list {

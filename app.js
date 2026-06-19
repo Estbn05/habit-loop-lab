@@ -13,6 +13,16 @@ const HABIT_LIFECYCLE = {
   FORMATION: "formation",
   MAINTENANCE: "maintenance",
 };
+const WEEKDAY_OPTIONS = [
+  { value: 1, short: "L", label: "Lunes" },
+  { value: 2, short: "M", label: "Martes" },
+  { value: 3, short: "X", label: "Miercoles" },
+  { value: 4, short: "J", label: "Jueves" },
+  { value: 5, short: "V", label: "Viernes" },
+  { value: 6, short: "S", label: "Sabado" },
+  { value: 0, short: "D", label: "Domingo" },
+];
+const EVERY_DAY_VALUES = WEEKDAY_OPTIONS.map((day) => day.value);
 
 const stageCopy = {
   precontemplation: {
@@ -123,9 +133,9 @@ const onboardingSteps = [
   {
     id: "schedule",
     eyebrow: "Fricción",
-    title: "¿Qué tan difícil se siente y cuándo lo harás?",
-    why: "Si se siente difícil, la app sugiere hacerlo temprano para proteger la energía mental.",
-    example: "Dificultad 2 y hora 07:30 para empezar simple.",
+    title: "¿Qué tan difícil se siente, cuándo y qué días lo harás?",
+    why: "La frecuencia debe respetar tu semana real. Los días sin selección no cuentan como falla.",
+    example: "Dificultad 2, hora 07:30 y lunes a viernes para empezar simple.",
   },
   {
     id: "celebration",
@@ -208,6 +218,7 @@ function createFallbackState() {
         desiredState: "",
         time: "",
         difficulty: 3,
+        scheduleDays: [...EVERY_DAY_VALUES],
         celebration: "",
       },
     },
@@ -252,6 +263,7 @@ function normalizeState(candidate, fallback = createFallbackState()) {
       draftHabit: {
         ...fallback.profile.draftHabit,
         ...(parsed.profile?.draftHabit || {}),
+        scheduleDays: normalizeScheduleDays(parsed.profile?.draftHabit?.scheduleDays),
       },
     },
     habits: Array.isArray(parsed.habits)
@@ -276,6 +288,45 @@ function normalizeDeletedLogTimes(value) {
   );
 }
 
+function normalizeScheduleDays(value) {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+  const selected = new Set(
+    source
+      .map((day) => Number(day))
+      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
+  );
+
+  if (!selected.size) return [...EVERY_DAY_VALUES];
+  return EVERY_DAY_VALUES.filter((day) => selected.has(day));
+}
+
+function getScheduleDaysFromForm(form) {
+  const formData = form instanceof FormData ? form : new FormData(form);
+  return normalizeScheduleDays(formData.getAll("scheduleDays"));
+}
+
+function getScheduleLabel(habit) {
+  return getScheduleLabelFromDays(habit?.scheduleDays);
+}
+
+function getScheduleLabelFromDays(days) {
+  const normalized = normalizeScheduleDays(days);
+  const key = normalized.join(",");
+
+  if (key === EVERY_DAY_VALUES.join(",")) return "Todos los días";
+  if (key === "1,2,3,4,5") return "Lun a vie";
+  if (key === "6,0") return "Fin de semana";
+
+  return WEEKDAY_OPTIONS
+    .filter((day) => normalized.includes(day.value))
+    .map((day) => day.short)
+    .join(", ");
+}
+
 function normalizeHabit(habit) {
   if (!habit || typeof habit !== "object") return null;
 
@@ -297,6 +348,7 @@ function normalizeHabit(habit) {
     id,
     lifecycle,
     createdAt,
+    scheduleDays: normalizeScheduleDays(habit.scheduleDays),
     logs,
   };
 }
@@ -439,7 +491,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260618-mockup-frame4" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-weekday-frequency" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -613,6 +665,7 @@ function renderOnboardingField(step, draft) {
           <input name="time" id="habit-time" type="time" value="${escapeAttr(draft.time || getSuggestedTime(state.profile.chronotype, draft.difficulty))}" />
         </label>
       </div>
+      ${renderScheduleDaySelector(draft.scheduleDays)}
     `;
   }
 
@@ -631,8 +684,34 @@ function renderOnboardingField(step, draft) {
       <div><span>Si ocurre</span><strong>${escapeHtml(draft.anchor || "tu rutina ancla")}</strong></div>
       <div><span>Entonces</span><strong>${escapeHtml(draft.action || "tu acción mínima")}</strong></div>
       <div><span>Para sentir</span><strong>${escapeHtml(draft.desiredState || "el estado deseado")}</strong></div>
+      <div><span>Frecuencia</span><strong>${escapeHtml(getScheduleLabelFromDays(draft.scheduleDays))}</strong></div>
       <div><span>Cierro con</span><strong>${escapeHtml(draft.celebration || "una celebración breve")}</strong></div>
     </div>
+  `;
+}
+
+function renderScheduleDaySelector(selectedDays) {
+  const selected = new Set(normalizeScheduleDays(selectedDays));
+
+  return `
+    <fieldset class="schedule-day-selector">
+      <legend>Días activos</legend>
+      <div class="weekday-options">
+        ${WEEKDAY_OPTIONS.map((day) => `
+          <label class="weekday-option">
+            <input
+              type="checkbox"
+              name="scheduleDays"
+              value="${day.value}"
+              ${selected.has(day.value) ? "checked" : ""}
+            />
+            <span aria-hidden="true">${escapeHtml(day.short)}</span>
+            <small>${escapeHtml(day.label)}</small>
+          </label>
+        `).join("")}
+      </div>
+      <p class="fine-print">Los días sin selección no cuentan como falla ni generan recordatorio.</p>
+    </fieldset>
   `;
 }
 
@@ -764,13 +843,15 @@ function renderCloudPanel() {
 
 function renderDashboard() {
   const trackedHabits = getTrackedHabits();
+  const todayHabits = trackedHabits.filter(isDueToday);
   const formationHabits = getFormationHabits();
   const selectedHabit = getSelectedHabit();
-  const requestedDailyHabit = trackedHabits.find((habit) => habit.id === ui.explicitDailyHabitId);
-  const dailyHabit = requestedDailyHabit || getDailyPriorityHabit() || selectedHabit;
+  const requestedDailyHabit = todayHabits.find((habit) => habit.id === ui.explicitDailyHabitId);
+  const selectedTodayHabit = todayHabits.find((habit) => habit.id === selectedHabit?.id);
+  const dailyHabit = requestedDailyHabit || getDailyPriorityHabit() || selectedTodayHabit || null;
   const dashboardHabit = requestedDailyHabit || selectedHabit || dailyHabit;
   const urgeHabit = state.habits.find((habit) => habit.id === ui.urgeHabitId) || dailyHabit || selectedHabit;
-  const completedToday = trackedHabits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
+  const completedToday = todayHabits.filter((habit) => getStatusForDate(habit, todayKey()) === "done").length;
   const averageAutomaticity = trackedHabits.length
     ? Math.round(trackedHabits.reduce((sum, habit) => sum + getHabitStats(habit).automaticity, 0) / trackedHabits.length)
     : 0;
@@ -787,8 +868,9 @@ function renderDashboard() {
         ${ui.showHabitForm ? renderHabitForm() : ""}
 
         ${renderActiveView({
-          trackedHabits,
+          trackedHabits: todayHabits,
           formationHabits,
+          totalTrackedHabits: trackedHabits.length,
           selectedHabit: dashboardHabit,
           dailyHabit,
           urgeHabit,
@@ -848,21 +930,41 @@ function renderActiveView(context) {
   return renderTodayView(context);
 }
 
-function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday }) {
+function renderTodayView({ trackedHabits, dailyHabit, urgeHabit, completedToday, totalTrackedHabits }) {
   const allCompleted = trackedHabits.length > 0
     && trackedHabits.every((habit) => getStatusForDate(habit, todayKey()) === "done");
+  const daySummary = trackedHabits.length
+    ? `${completedToday} de ${trackedHabits.length}`
+    : "sin hábitos programados";
 
   return `
     <section class="view-shell today-view" aria-labelledby="today-title">
       ${allCompleted ? "" : `<header class="mockup-day-header">
         <span class="section-chip">Hoy</span>
-        <span id="today-title">${formatDayLabel(todayKey())} · ${completedToday} de ${trackedHabits.length}</span>
+        <span id="today-title">${formatDayLabel(todayKey())} · ${daySummary}</span>
       </header>`}
 
-      ${allCompleted ? renderAllCompleted(trackedHabits) : dailyHabit ? renderDailyFocus(dailyHabit) : renderEmptyState()}
+      ${allCompleted
+        ? renderAllCompleted(trackedHabits)
+        : dailyHabit
+          ? renderDailyFocus(dailyHabit)
+          : totalTrackedHabits
+            ? renderNoScheduledToday()
+            : renderEmptyState()
+      }
       ${ui.urgeHabitId && urgeHabit ? renderUrgeSurfingPanel(urgeHabit) : ""}
-      ${!allCompleted ? renderTodayDots(trackedHabits) : ""}
+      ${!allCompleted && trackedHabits.length ? renderTodayDots(trackedHabits) : ""}
       <span class="sr-only">${completedToday}/${trackedHabits.length || 0} micro-votos emitidos hoy.</span>
+    </section>
+  `;
+}
+
+function renderNoScheduledToday() {
+  return `
+    <section class="empty-state">
+      <h2>Hoy no hay micro-votos programados</h2>
+      <p class="muted">Los días fuera de frecuencia no cuentan como falla. Puedes revisar o editar la frecuencia desde Hábitos.</p>
+      <button class="button secondary" type="button" data-action="switch-view" data-view="habits">Ver hábitos</button>
     </section>
   `;
 }
@@ -975,6 +1077,7 @@ function renderCompactHabitGroup(title, habits) {
 function renderCompactHabitItem(habit, index) {
   const stats = getHabitStats(habit);
   const lifecycle = getHabitLifecycle(habit);
+  const scheduleLabel = getScheduleLabel(habit);
 
   return `
     <article class="compact-habit-item ${lifecycle}">
@@ -982,7 +1085,7 @@ function renderCompactHabitItem(habit, index) {
         <span class="habit-list-number">${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "—" : String(index + 1).padStart(2, "0")}</span>
         <span class="habit-list-copy">
           <strong>${escapeHtml(habit.action)}</strong>
-          <small>Después de ${escapeHtml(habit.anchor)} · ${stats.ageDays} días</small>
+          <small>Después de ${escapeHtml(habit.anchor)} · ${escapeHtml(scheduleLabel)} · ${stats.ageDays} días</small>
         </span>
         <span class="habit-list-badge ${lifecycle}">
           ${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "Auto" : `${Math.round((stats.averageEase / 5) * 100)}%`}
@@ -1005,6 +1108,7 @@ function renderProgressView(habit, riskyHabits = []) {
   const todayLog = habit.logs?.[todayKey()];
   const readiness = getMaintenanceReadiness(habit, stats);
   const historyDays = getHabitHistoryDays(habit);
+  const dueToday = isDueToday(habit);
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
@@ -1013,7 +1117,7 @@ function renderProgressView(habit, riskyHabits = []) {
       </header>
       <div class="progress-title">
         <h1 id="progress-view-title">${escapeHtml(habit.action)}</h1>
-        <p>${stats.ageDays} días de historia</p>
+        <p>${stats.ageDays} días de historia · ${escapeHtml(getScheduleLabel(habit))}</p>
       </div>
 
       <div class="progress-mini-stats">
@@ -1061,8 +1165,14 @@ function renderProgressView(habit, riskyHabits = []) {
               </div>
             </div>
             <div class="button-row">
-              <button class="button ghost" type="button" data-action="select-today-habit" data-id="${habit.id}">
-                ${todayLog?.status ? "Ver hoy" : "Registrar hoy"}
+              <button
+                class="button ghost"
+                type="button"
+                data-action="select-today-habit"
+                data-id="${habit.id}"
+                ${dueToday || todayLog?.status ? "" : "disabled"}
+              >
+                ${todayLog?.status ? "Ver hoy" : dueToday ? "Registrar hoy" : "Fuera de frecuencia hoy"}
               </button>
               ${renderLifecycleAction(habit, readiness)}
               ${todayLog?.status ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
@@ -1391,6 +1501,7 @@ function renderHabitCard(habit, activeDailyHabitId = null) {
         <div class="progress-shell" aria-label="Automaticidad ${stats.automaticity}%">
           <div class="progress-bar" style="--value: ${stats.automaticity}%"></div>
         </div>
+        <p class="fine-print">Frecuencia: ${escapeHtml(getScheduleLabel(habit))}</p>
         <p class="fine-print">${stats.phaseLabel} · ${stats.automaticity}% automático · ${stats.reminderPolicy.short}</p>
         ${lifecycle === HABIT_LIFECYCLE.FORMATION ? `<p class="fine-print">Mantenimiento: ${readiness.passed}/${readiness.total} señales listas.</p>` : `<p class="fine-print">No cuenta contra el límite de ${MAX_HABITS} hábitos en formación.</p>`}
       </div>
@@ -1501,6 +1612,10 @@ function renderHabitForm() {
               <span class="range-value" id="difficulty-value">${habit?.difficulty || 3}</span>
             </span>
           </label>
+
+          <div class="form-field full">
+            ${renderScheduleDaySelector(habit?.scheduleDays)}
+          </div>
 
           <label class="form-field full">
             Celebración inmediata
@@ -1693,6 +1808,11 @@ function renderEmptyState() {
 }
 
 function handleClick(event) {
+  if (event.target.matches('[name="scheduleDays"]')) {
+    const form = event.target.closest("#onboarding-form");
+    if (form) window.setTimeout(() => persistOnboardingDraft(form), 0);
+  }
+
   const button = event.target.closest("[data-action]");
   if (!button) return;
 
@@ -1707,6 +1827,11 @@ function handleClick(event) {
   }
 
   if (action === "select-today-habit" || action === "go-today") {
+    const habit = state.habits.find((item) => item.id === id);
+    if (habit && !isDueToday(habit) && !habit.logs?.[todayKey()]?.status) {
+      showToast("Este hábito no está programado para hoy.");
+      return;
+    }
     ui.confirmation = null;
     state.selectedHabitId = id;
     ui.explicitDailyHabitId = id;
@@ -2076,6 +2201,7 @@ function getOnboardingDraft() {
     desiredState: draft.desiredState || "",
     time: draft.time || getSuggestedTime(state.profile.chronotype, difficulty),
     difficulty,
+    scheduleDays: normalizeScheduleDays(draft.scheduleDays),
     celebration: draft.celebration || "",
   };
 }
@@ -2105,6 +2231,7 @@ function persistOnboardingDraft(form) {
   if (formData.has("desiredState")) draft.desiredState = cleanText(formData.get("desiredState"));
   if (formData.has("difficulty")) draft.difficulty = Number(formData.get("difficulty")) || 3;
   if (formData.has("time")) draft.time = formData.get("time") || getSuggestedTime(state.profile.chronotype, draft.difficulty);
+  if (form.querySelector('[name="scheduleDays"]')) draft.scheduleDays = getScheduleDaysFromForm(form);
   if (formData.has("celebration")) draft.celebration = cleanText(formData.get("celebration"));
 
   state.profile.stage = diagnoseStage(state.profile.readiness, state.profile.confidence);
@@ -2177,6 +2304,7 @@ function buildHabitFromDraft(draft, fallbackIdentity) {
     desiredState: cleanText(draft.desiredState),
     time: draft.time || getSuggestedTime(state.profile.chronotype, difficulty),
     difficulty,
+    scheduleDays: normalizeScheduleDays(draft.scheduleDays),
     celebration: cleanText(draft.celebration) || "respirar y decir: esto cuenta",
     lifecycle: HABIT_LIFECYCLE.FORMATION,
     createdAt: todayKey(),
@@ -2193,6 +2321,7 @@ function buildHabitPayload(form, fallbackIdentity = state.profile.identity) {
     desiredState: cleanText(form.get("desiredState")),
     time: form.get("time") || getSuggestedTime(state.profile.chronotype, difficulty),
     difficulty,
+    scheduleDays: getScheduleDaysFromForm(form),
     celebration: cleanText(form.get("celebration")) || "respirar y decir: esto cuenta",
   };
 }
@@ -2200,6 +2329,10 @@ function buildHabitPayload(form, fallbackIdentity = state.profile.identity) {
 function logHabit(id, status, options = {}) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit) return;
+  if (!isDueToday(habit)) {
+    showToast("Este hábito no está programado para hoy.");
+    return;
+  }
   const previousMissStreak = getMissStreak(habit);
   const loggedAt = new Date().toISOString();
 
@@ -2219,7 +2352,7 @@ function logHabit(id, status, options = {}) {
 
   ui.urgeHabitId = null;
   ui.explicitDailyHabitId = null;
-  const nextDailyHabit = getDailyPriorityHabit() || getTrackedHabits().find((item) => !hasTodayLog(item));
+  const nextDailyHabit = getDailyPriorityHabit() || getTrackedHabits().find((item) => isDueToday(item) && !hasTodayLog(item));
   state.selectedHabitId = nextDailyHabit?.id || id;
 
   if (status === "done") {
@@ -2345,7 +2478,7 @@ function ensureSelectedHabit() {
 }
 
 function getDailyPriorityHabit() {
-  const formationHabits = getFormationHabits();
+  const formationHabits = getFormationHabits().filter(isDueToday);
   if (!formationHabits.length) return null;
 
   const pendingHabits = formationHabits.filter((habit) => !hasTodayLog(habit));
@@ -2521,20 +2654,33 @@ function getCompletionRateForDays(habit, days) {
 function getMissStreak(habit) {
   let streak = 0;
   const todayStatus = getStatusForDate(habit, todayKey());
-  let cursor = todayStatus === "done" ? "" : todayStatus === "missed" ? todayKey() : addDays(todayKey(), -1);
+  let cursor = todayStatus === "done"
+    ? ""
+    : todayStatus === "missed"
+      ? todayKey()
+      : getPreviousActiveDate(habit, todayKey());
 
   while (cursor && isActiveOn(habit, cursor)) {
     const status = getStatusForDate(habit, cursor);
     if (status === "done") break;
     if (status === "missed") {
       streak += 1;
-      cursor = addDays(cursor, -1);
+      cursor = getPreviousActiveDate(habit, cursor);
       continue;
     }
     break;
   }
 
   return streak;
+}
+
+function getPreviousActiveDate(habit, beforeDateKey) {
+  let cursor = addDays(beforeDateKey, -1);
+  while (isDateKey(cursor) && cursor >= habit.createdAt) {
+    if (isActiveOn(habit, cursor)) return cursor;
+    cursor = addDays(cursor, -1);
+  }
+  return "";
 }
 
 function getStatusForDate(habit, dateKey) {
@@ -2546,7 +2692,15 @@ function getStatusForDate(habit, dateKey) {
 }
 
 function isActiveOn(habit, dateKey) {
-  return dateKey >= habit.createdAt && dateKey <= todayKey();
+  return dateKey >= habit.createdAt && dateKey <= todayKey() && isScheduledOn(habit, dateKey);
+}
+
+function isDueToday(habit) {
+  return isActiveOn(habit, todayKey());
+}
+
+function isScheduledOn(habit, dateKey) {
+  return normalizeScheduleDays(habit?.scheduleDays).includes(parseDateKey(dateKey).getDay());
 }
 
 function createVariableReward(habit, repairedMissStreak = 0) {
@@ -3283,6 +3437,7 @@ function scheduleReminders() {
   if (!state.profile.notifications || !("Notification" in window) || Notification.permission !== "granted") return;
 
   state.habits.forEach((habit) => {
+    if (!isDueToday(habit)) return;
     if (getStatusForDate(habit, todayKey()) === "done") return;
     const stats = getHabitStats(habit);
     if (!shouldSendFadedReminder(habit, stats.reminderPolicy.chance)) return;

@@ -5612,3 +5612,103 @@ input[type="range"] {
     overflow-wrap: break-word;
   }
 }
+
+.schedule-day-selector {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.schedule-day-selector legend {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.weekday-options {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.weekday-option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 70px;
+  padding: 8px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+.weekday-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.weekday-option span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(35, 31, 24, 0.06);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.weekday-option small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.weekday-option:has(input:checked) {
+  border-color: rgba(13, 124, 102, 0.34);
+  background: var(--green-soft);
+}
+
+.weekday-option:has(input:checked) span {
+  color: #ffffff;
+  background: var(--teal);
+}
+
+.weekday-option:has(input:checked) small {
+  color: var(--teal-dark);
+}
+
+.weekday-option:focus-within {
+  outline: 3px solid rgba(55, 111, 151, 0.18);
+  outline-offset: 2px;
+}
+
+.schedule-day-selector .fine-print {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .weekday-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .weekday-option {
+    min-height: 66px;
+  }
+}

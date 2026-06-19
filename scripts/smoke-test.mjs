@@ -26,11 +26,17 @@ try {
     ["/app.js", "clearLocalUserDataAfterLogout"],
     ["/app.js", "deletedLogTimes"],
     ["/app.js", "shouldDeleteLog"],
+    ["/app.js", "if (!validateCurrentOnboardingStep()) {\n      render();\n      return;\n    }"],
     ["/styles.css", "automaticity-stages"],
     ["/styles.css", "V3 editorial mockup system"],
+    ["/styles.css", "V4 calm loop mockup system"],
     ["/styles.css", "identity-card"],
     ["/manifest.webmanifest", "\"display\": \"standalone\""],
     ["/service-worker.js", "habit-loop-lab-pwa"],
+    ["/assets/icons/app-icon.svg", "<svg"],
+    ["/assets/icons/icon-180.png", "PNG"],
+    ["/assets/icons/icon-192.png", "PNG"],
+    ["/assets/icons/icon-512.png", "PNG"],
   ];
 
   for (const [path, expected] of checks) {

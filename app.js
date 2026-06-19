@@ -439,7 +439,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260611-editorial-v3" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260618-mockup-frame4" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -1004,6 +1004,7 @@ function renderProgressView(habit, riskyHabits = []) {
   const phase = lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "maintenance" : stats.ageDays <= 21 ? "effort" : "consolidation";
   const todayLog = habit.logs?.[todayKey()];
   const readiness = getMaintenanceReadiness(habit, stats);
+  const historyDays = getHabitHistoryDays(habit);
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
@@ -1031,8 +1032,8 @@ function renderProgressView(habit, riskyHabits = []) {
       </section>
 
       <section class="progress-section">
-        <div class="list-section-title"><h2>Últimas 3 semanas</h2></div>
-        ${renderHistoryHeatmap(habit, 21)}
+        <div class="list-section-title"><h2>Historial diario</h2><span>${historyDays.length} días</span></div>
+        ${renderHistoryHeatmap(habit, historyDays)}
       </section>
 
       ${renderHabitNotes(habit)}
@@ -1075,10 +1076,10 @@ function renderProgressView(habit, riskyHabits = []) {
   `;
 }
 
-function renderHistoryHeatmap(habit, count = 21) {
+function renderHistoryHeatmap(habit, days = getHabitHistoryDays(habit)) {
   return `
-    <div class="history-heatmap" aria-label="Historial de ${count} días">
-      ${getRecentDays(count).map((day) => `
+    <div class="history-heatmap" aria-label="Historial de ${days.length} días">
+      ${days.map((day) => `
         <span class="${getStatusForDate(habit, day)}" title="${formatDate(day)}"></span>
       `).join("")}
     </div>
@@ -1241,7 +1242,7 @@ function renderDailyFocus(habit) {
             <span aria-hidden="true">−</span>
             <strong>Versión mínima</strong>
           </button>
-          <button class="today-action-secondary" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
+          <button class="today-action-secondary missed" type="button" data-action="log-missed" data-id="${habit.id}" ${actionDisabled ? "disabled" : ""}>
             <span aria-hidden="true">○</span>
             <strong>Hoy no pude</strong>
           </button>
@@ -1728,7 +1729,10 @@ function handleClick(event) {
   if (action === "onboarding-next") {
     const form = button.closest("form");
     persistOnboardingDraft(form);
-    if (!validateCurrentOnboardingStep()) return;
+    if (!validateCurrentOnboardingStep()) {
+      render();
+      return;
+    }
     state.profile.onboardingStep = Math.min(getOnboardingStepIndex() + 1, onboardingSteps.length - 1);
     ui.toast = "";
     saveState();
@@ -3420,6 +3424,13 @@ function getStatusLabel(status) {
 
 function getRecentDays(count) {
   return Array.from({ length: count }, (_, index) => addDays(todayKey(), index - count + 1));
+}
+
+function getHabitHistoryDays(habit) {
+  const today = todayKey();
+  const createdAt = isDateKey(habit?.createdAt) && habit.createdAt <= today ? habit.createdAt : today;
+  const count = Math.max(1, daysBetween(createdAt, today) + 1);
+  return Array.from({ length: count }, (_, index) => addDays(createdAt, index));
 }
 
 function todayKey() {

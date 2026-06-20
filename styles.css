@@ -5803,6 +5803,35 @@ input[type="range"] {
   border-top: 1px solid var(--line);
 }
 
+.progress-habit-select {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.progress-habit-select span {
+  color: #aaaaaa;
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.progress-habit-select select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 38px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  background-color: var(--surface);
+  font-size: 0.95rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 520px) {
   .weekly-review-footer {
     grid-template-columns: 1fr;

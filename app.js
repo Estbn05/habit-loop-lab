@@ -492,7 +492,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-weekly-review" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-progress-switch" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -1110,13 +1110,15 @@ function renderProgressView(habit, riskyHabits = []) {
   const readiness = getMaintenanceReadiness(habit, stats);
   const historyDays = getHabitHistoryDays(habit);
   const dueToday = isDueToday(habit);
-  const weeklyReviewStats = getWeeklyReviewStats(getTrackedHabits());
+  const trackedHabits = getTrackedHabits();
+  const weeklyReviewStats = getWeeklyReviewStats(trackedHabits);
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
       <header class="mockup-view-header progress-heading">
         <span class="section-chip">Progreso</span>
       </header>
+      ${renderProgressHabitSwitcher(habit, trackedHabits)}
       <div class="progress-title">
         <h1 id="progress-view-title">${escapeHtml(habit.action)}</h1>
         <p>${stats.ageDays} días de historia · ${escapeHtml(getScheduleLabel(habit))}</p>
@@ -1186,6 +1188,23 @@ function renderProgressView(habit, riskyHabits = []) {
         </div>
       </details>
     </section>
+  `;
+}
+
+function renderProgressHabitSwitcher(selectedHabit, habits = getTrackedHabits()) {
+  if (habits.length <= 1) return "";
+
+  return `
+    <label class="progress-habit-select">
+      <span>Cambiar hábito</span>
+      <select data-action="progress-select" aria-label="Cambiar hábito en progreso">
+        ${habits.map((habit) => `
+          <option value="${escapeAttr(habit.id)}" ${habit.id === selectedHabit.id ? "selected" : ""}>
+            ${escapeHtml(habit.action)}
+          </option>
+        `).join("")}
+      </select>
+    </label>
   `;
 }
 

@@ -493,7 +493,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260620-sunday-review" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260620-qa-cleanup" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -727,26 +727,6 @@ function renderOnboardingPreview(draft) {
         para sentir <strong>${escapeHtml(draft.desiredState || "un cambio de estado")}</strong>.
       </p>
     </aside>
-  `;
-}
-
-function renderCloudAccess(context = "dashboard") {
-  const status = getCloudStatus();
-  const title = context === "onboarding" ? "¿Ya tienes datos en otro dispositivo?" : "Nube opcional";
-  const body = context === "onboarding"
-    ? "Inicia sesión y la app mantendrá tus hábitos actualizados automáticamente."
-    : "Inicia sesión una vez. La app se encarga de mantener los dispositivos actualizados.";
-
-  return `
-    <section class="cloud-access ${context === "onboarding" ? "cloud-access-onboarding" : ""}">
-      <div>
-        <span class="status-pill ${status.className}">${status.label}</span>
-        <h2>${title}</h2>
-        <p>${body}</p>
-        ${cloud.message ? `<p class="fine-print">${escapeHtml(cloud.message)}</p>` : ""}
-      </div>
-      <button class="button secondary" type="button" data-action="open-cloud">Iniciar sesión</button>
-    </section>
   `;
 }
 
@@ -1549,123 +1529,6 @@ function renderUrgeSurfingPanel(habit) {
   `;
 }
 
-function renderHabitSection(activeDailyHabitId = null) {
-  if (!state.habits.length) return renderEmptyState();
-  const formationHabits = getFormationHabits();
-  const maintenanceHabits = getMaintenanceHabits();
-
-  return `
-    ${renderHabitGroup({
-      title: "En formación",
-      description: `Máximo ${MAX_HABITS}. Estos hábitos todavía consumen esfuerzo consciente.`,
-      habits: formationHabits,
-      tag: `${formationHabits.length}/${MAX_HABITS}`,
-      activeDailyHabitId,
-      empty: "No hay hábitos en formación. Puedes añadir uno nuevo.",
-    })}
-    ${maintenanceHabits.length ? renderHabitGroup({
-      title: "Mantenimiento",
-      description: "No cuentan contra el límite porque ya muestran señales de automaticidad.",
-      habits: maintenanceHabits,
-      tag: `${maintenanceHabits.length}`,
-      activeDailyHabitId,
-    }) : ""}
-  `;
-}
-
-function renderHabitGroup({ title, description, habits, tag, activeDailyHabitId, empty = "" }) {
-  const titleId = `habits-${cleanText(title).toLowerCase().replace(/\s+/g, "-")}`;
-
-  return `
-    <section class="section-block" aria-labelledby="${titleId}">
-      <div class="section-title">
-        <div>
-          <h2 id="${titleId}">${title}</h2>
-          <p>${description}</p>
-        </div>
-        <span class="tag">${tag}</span>
-      </div>
-      ${habits.length ? `
-        <div class="habit-grid">
-          ${habits.map((habit) => renderHabitCard(habit, activeDailyHabitId)).join("")}
-        </div>
-      ` : `<p class="empty-note">${empty}</p>`}
-    </section>
-  `;
-}
-
-function renderHabitCard(habit, activeDailyHabitId = null) {
-  const stats = getHabitStats(habit);
-  const todayStatus = getStatusForDate(habit, todayKey());
-  const lifecycle = getHabitLifecycle(habit);
-  const readiness = getMaintenanceReadiness(habit, stats);
-  const hasActiveDailyHabit = Boolean(activeDailyHabitId);
-  const isActiveDailyHabit = habit.id === activeDailyHabitId;
-  const isSelected = isActiveDailyHabit || (!hasActiveDailyHabit && habit.id === state.selectedHabitId);
-  const selected = isSelected ? "selected" : "";
-  const statusClass = todayStatus === "done" ? "done" : todayStatus === "missed" ? "missed" : "open";
-  const recentDays = getRecentDays(14);
-  const focusLabel = todayStatus === "open" ? "Registrar / progreso" : "Ver progreso";
-  const selectedLabel = todayStatus === "open" ? "Hábito abierto" : "Progreso abierto";
-  const focusHint = `Abrir registro y progreso de ${habit.action}`;
-
-  return `
-    <article class="habit-card ${selected}">
-      <div class="habit-head">
-        <div>
-          <h3>${escapeHtml(habit.action)}</h3>
-          <p class="muted" style="margin: 4px 0 0;">${escapeHtml(habit.identity)}</p>
-        </div>
-        <div class="habit-pills">
-          <span class="phase-pill">${lifecycle === HABIT_LIFECYCLE.MAINTENANCE ? "Mantenimiento" : "En formación"}</span>
-          <span class="status-pill ${statusClass}">${getStatusLabel(todayStatus)}</span>
-        </div>
-      </div>
-
-      <div class="ifthen">
-        <div>
-          <span>Después de</span>
-          <strong>${escapeHtml(habit.anchor)}</strong>
-        </div>
-        <div>
-          <span>Haré</span>
-          <strong>${escapeHtml(habit.action)}</strong>
-        </div>
-      </div>
-
-      <div>
-        <div class="progress-shell" aria-label="Automaticidad ${stats.automaticity}%">
-          <div class="progress-bar" style="--value: ${stats.automaticity}%"></div>
-        </div>
-        <p class="fine-print">Frecuencia: ${escapeHtml(getScheduleLabel(habit))}</p>
-        <p class="fine-print">${stats.phaseLabel} · ${stats.automaticity}% automático · ${stats.reminderPolicy.short}</p>
-        ${lifecycle === HABIT_LIFECYCLE.FORMATION ? `<p class="fine-print">Mantenimiento: ${readiness.passed}/${readiness.total} señales listas.</p>` : `<p class="fine-print">No cuenta contra el límite de ${MAX_HABITS} hábitos en formación.</p>`}
-      </div>
-
-      <div class="day-rail" aria-label="Últimos 14 días">
-        ${recentDays.map((day) => `<span class="day-dot ${getStatusForDate(habit, day)} ${day === todayKey() ? "today" : ""}" title="${formatDate(day)}"></span>`).join("")}
-      </div>
-
-      <div class="habit-actions">
-        <button
-          class="button ${isSelected ? "ghost" : "secondary"}"
-          type="button"
-          data-action="select-habit"
-          data-id="${habit.id}"
-          aria-pressed="${isSelected}"
-          aria-label="${escapeAttr(focusHint)}"
-          title="${escapeAttr(focusHint)}"
-          ${isSelected ? "disabled" : ""}
-        >${isSelected ? selectedLabel : focusLabel}</button>
-        ${renderLifecycleAction(habit, readiness)}
-        ${todayStatus !== "open" ? `<button class="button ghost" type="button" data-action="undo-log" data-id="${habit.id}">Reabrir hoy</button>` : ""}
-        <button class="icon-button" type="button" data-action="edit-habit" data-id="${habit.id}" aria-label="Editar ${escapeAttr(habit.action)}">✎</button>
-        <button class="icon-button" type="button" data-action="delete-habit" data-id="${habit.id}" aria-label="Eliminar ${escapeAttr(habit.action)}">×</button>
-      </div>
-    </article>
-  `;
-}
-
 function renderLifecycleAction(habit, readiness) {
   const lifecycle = getHabitLifecycle(habit);
 
@@ -1780,93 +1643,6 @@ function renderReward(reward) {
       <div class="inline-actions">
         <span class="tag">${escapeHtml(reward.type)}</span>
         <span class="tag">${escapeHtml(reward.prompt)}</span>
-      </div>
-    </section>
-  `;
-}
-
-function renderMetrics(completedToday, averageAutomaticity, trackedHabits = getTrackedHabits()) {
-  const total = trackedHabits.length || 1;
-  const formationCount = getFormationHabits().length;
-  const maintenanceCount = getMaintenanceHabits().length;
-  const neverMissTwice = trackedHabits.filter((habit) => getMissStreak(habit) < 2).length;
-  return `
-    <section class="panel" aria-labelledby="metrics-title">
-      <div class="section-title">
-        <div>
-          <h2 id="metrics-title">Señales</h2>
-          <p>Seguimiento de ejecución y facilidad.</p>
-        </div>
-      </div>
-      <div class="metrics-grid">
-        <div class="metric"><span>Hoy</span><b>${completedToday}/${trackedHabits.length}</b></div>
-        <div class="metric"><span>Automático</span><b>${averageAutomaticity}%</b></div>
-        <div class="metric"><span>Sin doble falla</span><b>${neverMissTwice}/${total}</b></div>
-        <div class="metric"><span>Formación</span><b>${formationCount}/${MAX_HABITS}</b></div>
-        <div class="metric"><span>Mantenimiento</span><b>${maintenanceCount}</b></div>
-      </div>
-    </section>
-  `;
-}
-
-function renderRelapsePanel(riskyHabits) {
-  const habit = riskyHabits[0];
-  const streak = getMissStreak(habit);
-  const title = streak >= 2 ? "Activa el plan mínimo" : "Nunca falles dos veces";
-  const body = streak >= 2
-    ? "Esto no es identidad, es un dato de aprendizaje. Haz solo la versión de dos minutos y cierra el ciclo."
-    : "Ayer no salió. Hoy basta una respuesta pequeña para evitar que el patrón se consolide.";
-
-  return `
-    <section class="panel relapse-panel" aria-labelledby="relapse-title">
-      <h2 id="relapse-title">${title}</h2>
-      <p>${body}</p>
-      <div class="ifthen">
-        <div>
-          <span>Ola de impulso</span>
-          <strong>Observa 90 segundos sin pelearla</strong>
-        </div>
-        <div>
-          <span>Siguiente voto</span>
-          <strong>${escapeHtml(habit.action)}</strong>
-        </div>
-      </div>
-      <div class="button-row" style="margin-top: 14px;">
-        <button class="button primary" type="button" data-action="log-done" data-id="${habit.id}">Hacer versión mínima</button>
-        <button class="button ghost" type="button" data-action="select-habit" data-id="${habit.id}">Ver hábito</button>
-      </div>
-    </section>
-  `;
-}
-
-function renderStablePanel() {
-  return `
-    <section class="panel">
-      <h2>Estabilidad</h2>
-      <p>Hoy no hay doble falla activa. Mantén el voto pequeño y fácil de repetir.</p>
-    </section>
-  `;
-}
-
-function renderStackMap() {
-  if (!state.habits.length) return "";
-
-  return `
-    <section class="panel" aria-labelledby="stack-title">
-      <div class="section-title">
-        <div>
-          <h2 id="stack-title">Mapa de habit stacking</h2>
-          <p>Rutinas existentes como anclas para nuevos votos.</p>
-        </div>
-      </div>
-      <div class="stack-map">
-        ${state.habits.map((habit) => `
-          <div class="stack-row">
-            <div class="stack-node">${escapeHtml(habit.anchor)}</div>
-            <div class="stack-arrow" aria-hidden="true">→</div>
-            <div class="stack-node">${escapeHtml(habit.action)}</div>
-          </div>
-        `).join("")}
       </div>
     </section>
   `;
@@ -2880,20 +2656,6 @@ function hasDoubleMissInRecentDays(habit, days = 21) {
   return false;
 }
 
-function getDailyFocusLabel(habit) {
-  const hour = new Date().getHours();
-  if (hour < 12 && Number(habit.difficulty || 3) >= 4) return "Ventana estable de la mañana";
-  if (hour >= 18) return "Cierre sin fricción";
-  return "Recordatorio de identidad";
-}
-
-function completedCopy(status, missStreak) {
-  if (status === "done") return "Micro-voto emitido";
-  if (status === "missed") return "Dato de aprendizaje";
-  if (missStreak > 0) return "Hoy protege el mínimo";
-  return "Pendiente de acción";
-}
-
 function getHabitStats(habit) {
   const ageDays = Math.max(1, daysBetween(habit.createdAt, todayKey()) + 1);
   const activeDays = getRecentDays(14).filter((day) => isActiveOn(habit, day));
@@ -3246,13 +3008,6 @@ async function syncStateAfterCloudLogin() {
     console.error(error);
     cloud.message = error.message || "Sesión activa, pero no pude sincronizar la nube.";
   }
-}
-
-function isLocalStateNewerThanRemote(remote) {
-  const localTime = Date.parse(state.updatedAt || "");
-  const remoteTime = Date.parse(remote?.updated_at || remote?.state?.updatedAt || "");
-
-  return Number.isFinite(localTime) && Number.isFinite(remoteTime) && localTime > remoteTime;
 }
 
 async function signOutCloud() {
@@ -3815,13 +3570,6 @@ function getScheduleSuggestion(chronotype, difficulty) {
   return "La mañana suele tener más estabilidad contextual para hábitos nuevos.";
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Buenos días";
-  if (hour < 18) return "Buenas tardes";
-  return "Buenas noches";
-}
-
 function getPhaseLabel(ageDays) {
   if (ageDays <= 21) return "Esfuerzo consciente";
   if (ageDays <= 66) return "Mielinización";
@@ -3850,12 +3598,6 @@ function stableHash(value) {
   return String(value).split("").reduce((hash, char) => {
     return (hash * 31 + char.charCodeAt(0)) >>> 0;
   }, 7);
-}
-
-function getStatusLabel(status) {
-  if (status === "done") return "Hecho";
-  if (status === "missed") return "Dato";
-  return "Abierto";
 }
 
 function getRecentDays(count) {

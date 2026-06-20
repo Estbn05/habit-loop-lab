@@ -5722,6 +5722,22 @@ input[type="range"] {
   background: var(--surface);
 }
 
+.weekly-review-compact .weekly-review-card {
+  gap: 14px;
+}
+
+.weekly-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.weekly-review-actions .button {
+  min-height: 42px;
+}
+
 .weekly-review-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5793,6 +5809,7 @@ input[type="range"] {
 
 .weekly-review-footer {
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -5834,9 +5851,18 @@ input[type="range"] {
 
 @media (max-width: 520px) {
   .weekly-review-footer {
+    display: grid;
     grid-template-columns: 1fr;
+    justify-content: stretch;
   }
 
+  .weekly-review-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .weekly-review-actions .button,
   .weekly-review-footer .button {
     width: 100%;
   }

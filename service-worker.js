@@ -1,14 +1,14 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260619-progress-switch";
+const CACHE_NAME = "habit-loop-lab-pwa-20260620-sunday-review";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260619-progress-switch",
-  "./app.js?v=20260619-progress-switch",
-  "./manifest.webmanifest?v=20260619-progress-switch",
-  "./assets/icons/app-icon.svg?v=20260619-progress-switch",
-  "./assets/icons/icon-180.png?v=20260619-progress-switch",
-  "./assets/icons/icon-192.png?v=20260619-progress-switch",
-  "./assets/icons/icon-512.png?v=20260619-progress-switch",
+  "./styles.css?v=20260620-sunday-review",
+  "./app.js?v=20260620-sunday-review",
+  "./manifest.webmanifest?v=20260620-sunday-review",
+  "./assets/icons/app-icon.svg?v=20260620-sunday-review",
+  "./assets/icons/icon-180.png?v=20260620-sunday-review",
+  "./assets/icons/icon-192.png?v=20260620-sunday-review",
+  "./assets/icons/icon-512.png?v=20260620-sunday-review",
 ];
 
 self.addEventListener("install", (event) => {

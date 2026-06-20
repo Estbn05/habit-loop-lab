@@ -162,6 +162,7 @@ const ui = {
   activeView: getInitialView(),
   sidebarOpen: false,
   showCloudPanel: false,
+  showWeeklyReview: false,
   reward: null,
   confirmation: null,
   dailyNoteDrafts: {},
@@ -492,7 +493,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-progress-switch" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260620-sunday-review" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -1146,7 +1147,7 @@ function renderProgressView(habit, riskyHabits = []) {
 
       ${renderHabitNotes(habit)}
       ${isRisky ? renderProgressRelapse(habit, missStreak) : ""}
-      ${renderWeeklyReview(weeklyReviewStats, habit)}
+      ${renderWeeklyReviewEntry(weeklyReviewStats, habit)}
 
       <details class="progress-details">
         <summary>Ver más detalles</summary>
@@ -1253,7 +1254,44 @@ function renderProgressRelapse(habit, missStreak) {
   `;
 }
 
-function renderWeeklyReview(stats, selectedHabit) {
+function renderWeeklyReviewEntry(stats, selectedHabit) {
+  const isReviewDay = isWeeklyReviewDay();
+  if (isReviewDay || ui.showWeeklyReview) {
+    return renderWeeklyReview(stats, selectedHabit, { canClose: !isReviewDay });
+  }
+
+  return renderWeeklyReviewCompact();
+}
+
+function renderWeeklyReviewCompact() {
+  const review = getCurrentWeeklyReview();
+  const hasReview = Boolean(review);
+  const preview = review?.adjustment || review?.friction || review?.worked || "Puedes editarla si quieres cerrar mejor la semana.";
+
+  return `
+    <section class="progress-section weekly-review weekly-review-compact" aria-labelledby="weekly-review-title">
+      <div class="list-section-title">
+        <h2 id="weekly-review-title">Revisión semanal</h2>
+        <span>Domingo</span>
+      </div>
+
+      <div class="weekly-review-card">
+        <div class="weekly-review-insight">
+          <span>${hasReview ? "Esta semana" : "Próxima revisión"}</span>
+          <strong>${escapeHtml(hasReview ? "Revisión guardada" : getNextWeeklyReviewLabel())}</strong>
+          <p>${escapeHtml(hasReview ? preview : "Se abrirá sola el domingo. Si necesitas revisar antes, puedes abrirla manualmente.")}</p>
+        </div>
+        <div class="weekly-review-actions">
+          <button class="button ghost" type="button" data-action="open-weekly-review">
+            ${hasReview ? "Editar revisión" : "Abrir ahora"}
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderWeeklyReview(stats, selectedHabit, options = {}) {
   const review = getCurrentWeeklyReview();
   const trackedHabits = getTrackedHabits();
   const focusHabitId = review?.habitId || selectedHabit?.id || stats.frictionHabit?.id || trackedHabits[0]?.id || "";
@@ -1311,7 +1349,10 @@ function renderWeeklyReview(stats, selectedHabit) {
 
           <div class="form-footer weekly-review-footer">
             <p class="fine-print">${review ? `Guardada para ${escapeHtml(focusHabit?.action || "esta semana")}.` : "Un ajuste pequeño vale más que rediseñar todo el sistema."}</p>
-            <button class="button secondary" type="submit">${review ? "Actualizar revisión" : "Guardar revisión"}</button>
+            <div class="weekly-review-actions">
+              <button class="button secondary" type="submit">${review ? "Actualizar revisión" : "Guardar revisión"}</button>
+              ${options.canClose ? `<button class="button ghost" type="button" data-action="close-weekly-review">Cerrar</button>` : ""}
+            </div>
           </div>
         </form>
 
@@ -1983,6 +2024,16 @@ function handleClick(event) {
     render();
   }
 
+  if (action === "open-weekly-review") {
+    ui.showWeeklyReview = true;
+    render();
+  }
+
+  if (action === "close-weekly-review") {
+    ui.showWeeklyReview = false;
+    render();
+  }
+
   if (action === "cloud-clear-config") {
     clearCloudConfig();
   }
@@ -2465,6 +2516,7 @@ function saveWeeklyReview(form) {
     review,
     ...reflections.filter((item) => !(item?.type === WEEKLY_REVIEW_TYPE && item.weekKey === weekKey)),
   ].slice(0, 20);
+  ui.showWeeklyReview = isWeeklyReviewDay();
   showToast("Revisión semanal guardada.");
   saveState();
   render();
@@ -3823,6 +3875,16 @@ function getWeekStartKey(dateKey = todayKey()) {
   const offset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + offset);
   return toDateKey(date);
+}
+
+function isWeeklyReviewDay(dateKey = todayKey()) {
+  return parseDateKey(dateKey).getDay() === 0;
+}
+
+function getNextWeeklyReviewLabel(dateKey = todayKey()) {
+  if (isWeeklyReviewDay(dateKey)) return "Hoy";
+  const day = parseDateKey(dateKey).getDay();
+  return formatDate(addDays(dateKey, 7 - day));
 }
 
 function todayKey() {

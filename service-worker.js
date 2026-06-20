@@ -1,14 +1,14 @@
-const CACHE_NAME = "habit-loop-lab-pwa-20260619-weekday-frequency";
+const CACHE_NAME = "habit-loop-lab-pwa-20260619-weekly-review";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260619-weekday-frequency",
-  "./app.js?v=20260619-weekday-frequency",
-  "./manifest.webmanifest?v=20260619-weekday-frequency",
-  "./assets/icons/app-icon.svg?v=20260619-weekday-frequency",
-  "./assets/icons/icon-180.png?v=20260619-weekday-frequency",
-  "./assets/icons/icon-192.png?v=20260619-weekday-frequency",
-  "./assets/icons/icon-512.png?v=20260619-weekday-frequency",
+  "./styles.css?v=20260619-weekly-review",
+  "./app.js?v=20260619-weekly-review",
+  "./manifest.webmanifest?v=20260619-weekly-review",
+  "./assets/icons/app-icon.svg?v=20260619-weekly-review",
+  "./assets/icons/icon-180.png?v=20260619-weekly-review",
+  "./assets/icons/icon-192.png?v=20260619-weekly-review",
+  "./assets/icons/icon-512.png?v=20260619-weekly-review",
 ];
 
 self.addEventListener("install", (event) => {

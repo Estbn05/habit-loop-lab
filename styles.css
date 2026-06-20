@@ -5712,3 +5712,103 @@ input[type="range"] {
     min-height: 66px;
   }
 }
+
+.weekly-review-card {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.weekly-review-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weekly-review-stats div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--subtle);
+  text-align: center;
+}
+
+.weekly-review-stats strong {
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 650;
+}
+
+.weekly-review-stats span,
+.weekly-review-insight span,
+.weekly-review-last span {
+  color: #aaaaaa;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.weekly-review-insight {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.weekly-review-insight strong {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.weekly-review-insight p,
+.weekly-review-last p {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--serif);
+  font-size: 0.74rem;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.weekly-review-form {
+  display: grid;
+  gap: 10px;
+}
+
+.weekly-review-form .form-field {
+  gap: 6px;
+}
+
+.weekly-review-form textarea {
+  min-height: 74px;
+}
+
+.weekly-review-footer {
+  align-items: center;
+  gap: 10px;
+}
+
+.weekly-review-last {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 520px) {
+  .weekly-review-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .weekly-review-footer .button {
+    width: 100%;
+  }
+}

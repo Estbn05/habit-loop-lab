@@ -23,6 +23,7 @@ const WEEKDAY_OPTIONS = [
   { value: 0, short: "D", label: "Domingo" },
 ];
 const EVERY_DAY_VALUES = WEEKDAY_OPTIONS.map((day) => day.value);
+const WEEKLY_REVIEW_TYPE = "weekly-review";
 
 const stageCopy = {
   precontemplation: {
@@ -491,7 +492,7 @@ function renderOnboarding() {
     <main class="onboarding-wrap">
       <section class="onboarding-panel onboarding-${step.id}" aria-labelledby="onboarding-title">
         <header class="onboarding-brand">
-          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-weekday-frequency" alt="" />
+          <img class="brand-mark" src="assets/icons/app-icon.svg?v=20260619-weekly-review" alt="" />
           <span id="onboarding-title">Habit Loop Lab</span>
           <button class="onboarding-cloud-link" type="button" data-action="open-cloud">Ya tengo datos</button>
         </header>
@@ -1109,6 +1110,7 @@ function renderProgressView(habit, riskyHabits = []) {
   const readiness = getMaintenanceReadiness(habit, stats);
   const historyDays = getHabitHistoryDays(habit);
   const dueToday = isDueToday(habit);
+  const weeklyReviewStats = getWeeklyReviewStats(getTrackedHabits());
 
   return `
     <section class="view-shell progress-view" aria-labelledby="progress-view-title">
@@ -1142,6 +1144,7 @@ function renderProgressView(habit, riskyHabits = []) {
 
       ${renderHabitNotes(habit)}
       ${isRisky ? renderProgressRelapse(habit, missStreak) : ""}
+      ${renderWeeklyReview(weeklyReviewStats, habit)}
 
       <details class="progress-details">
         <summary>Ver más detalles</summary>
@@ -1227,6 +1230,79 @@ function renderProgressRelapse(habit, missStreak) {
       <button class="button rescue" type="button" data-action="go-today" data-id="${habit.id}">
         Registrar ahora →
       </button>
+    </section>
+  `;
+}
+
+function renderWeeklyReview(stats, selectedHabit) {
+  const review = getCurrentWeeklyReview();
+  const trackedHabits = getTrackedHabits();
+  const focusHabitId = review?.habitId || selectedHabit?.id || stats.frictionHabit?.id || trackedHabits[0]?.id || "";
+  const focusHabit = trackedHabits.find((habit) => habit.id === focusHabitId);
+  const lastReview = getRecentWeeklyReviews()[0];
+  const completion = Math.round(stats.completionRate * 100);
+
+  return `
+    <section class="progress-section weekly-review" aria-labelledby="weekly-review-title">
+      <div class="list-section-title">
+        <h2 id="weekly-review-title">Revisión semanal</h2>
+        <span>${escapeHtml(stats.label)}</span>
+      </div>
+
+      <div class="weekly-review-card">
+        <div class="weekly-review-stats" aria-label="Resumen semanal">
+          <div><strong>${completion}%</strong><span>cierre</span></div>
+          <div><strong>${stats.doneCount}/${stats.dueCount || 0}</strong><span>votos</span></div>
+          <div><strong>${stats.minimumCount}</strong><span>mínimos</span></div>
+        </div>
+
+        <div class="weekly-review-insight">
+          <span>${stats.frictionHabit ? "Mayor fricción" : "Señal principal"}</span>
+          <strong>${escapeHtml(stats.frictionHabit?.action || "Sin fricción registrada")}</strong>
+          <p>${escapeHtml(stats.nudge)}</p>
+        </div>
+
+        <form id="weekly-review-form" class="weekly-review-form">
+          <input type="hidden" name="weekKey" value="${escapeAttr(stats.weekKey)}" />
+          <label class="form-field">
+            Hábito a ajustar
+            <select name="habitId">
+              ${trackedHabits.map((habit) => `
+                <option value="${escapeAttr(habit.id)}" ${habit.id === focusHabitId ? "selected" : ""}>
+                  ${escapeHtml(habit.action)}
+                </option>
+              `).join("")}
+            </select>
+          </label>
+
+          <label class="form-field">
+            Qué funcionó
+            <textarea name="worked" maxlength="180" placeholder="Ejemplo: hacerlo después del café redujo la decisión.">${escapeHtml(review?.worked || "")}</textarea>
+          </label>
+
+          <label class="form-field">
+            Dónde hubo fricción
+            <textarea name="friction" maxlength="180" placeholder="Ejemplo: por la noche llegué con poca energía.">${escapeHtml(review?.friction || "")}</textarea>
+          </label>
+
+          <label class="form-field">
+            Ajuste de la próxima semana
+            <textarea name="adjustment" maxlength="180" placeholder="Ejemplo: dejarlo en versión mínima lunes y miércoles.">${escapeHtml(review?.adjustment || "")}</textarea>
+          </label>
+
+          <div class="form-footer weekly-review-footer">
+            <p class="fine-print">${review ? `Guardada para ${escapeHtml(focusHabit?.action || "esta semana")}.` : "Un ajuste pequeño vale más que rediseñar todo el sistema."}</p>
+            <button class="button secondary" type="submit">${review ? "Actualizar revisión" : "Guardar revisión"}</button>
+          </div>
+        </form>
+
+        ${lastReview ? `
+          <div class="weekly-review-last">
+            <span>Última revisión guardada</span>
+            <p>${escapeHtml(lastReview.adjustment || lastReview.friction || lastReview.worked || "Sin nota escrita.")}</p>
+          </div>
+        ` : ""}
+      </div>
     </section>
   `;
 }
@@ -2070,6 +2146,10 @@ async function handleSubmit(event) {
     });
   }
 
+  if (event.target.id === "weekly-review-form") {
+    saveWeeklyReview(new FormData(event.target));
+  }
+
   if (event.target.id === "habit-form") {
     const form = new FormData(event.target);
     const editingId = event.target.dataset.editing;
@@ -2326,6 +2406,51 @@ function buildHabitPayload(form, fallbackIdentity = state.profile.identity) {
   };
 }
 
+function saveWeeklyReview(form) {
+  const weekKey = cleanText(form.get("weekKey")) || getWeekStartKey();
+  const habitId = cleanText(form.get("habitId"));
+  const reflections = state.reflections || [];
+  const existing = reflections.find((item) => item?.type === WEEKLY_REVIEW_TYPE && item.weekKey === weekKey);
+  const now = new Date().toISOString();
+  const worked = cleanText(form.get("worked"));
+  const friction = cleanText(form.get("friction"));
+  const adjustment = cleanText(form.get("adjustment"));
+  const stats = getWeeklyReviewStats(getTrackedHabits(), weekKey);
+
+  if (!worked && !friction && !adjustment) {
+    showToast("Escribe al menos un aprendizaje o ajuste semanal.");
+    return;
+  }
+
+  const review = {
+    id: existing?.id || `${WEEKLY_REVIEW_TYPE}-${weekKey}`,
+    type: WEEKLY_REVIEW_TYPE,
+    title: "Revisión semanal",
+    weekKey,
+    habitId,
+    worked,
+    friction,
+    adjustment,
+    metrics: {
+      dueCount: stats.dueCount,
+      doneCount: stats.doneCount,
+      missedCount: stats.missedCount,
+      minimumCount: stats.minimumCount,
+      completionRate: stats.completionRate,
+    },
+    at: existing?.at || now,
+    updatedAt: now,
+  };
+
+  state.reflections = [
+    review,
+    ...reflections.filter((item) => !(item?.type === WEEKLY_REVIEW_TYPE && item.weekKey === weekKey)),
+  ].slice(0, 20);
+  showToast("Revisión semanal guardada.");
+  saveState();
+  render();
+}
+
 function logHabit(id, status, options = {}) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit) return;
@@ -2538,6 +2663,91 @@ function getDeletedLogKey(habitId, dateKey) {
 function removeDeletedLogKey(keys = [], habitId, dateKey) {
   const deletedKey = getDeletedLogKey(habitId, dateKey);
   return (keys || []).filter((key) => key !== deletedKey);
+}
+
+function getCurrentWeeklyReview() {
+  const weekKey = getWeekStartKey();
+  return state.reflections.find((item) => item?.type === WEEKLY_REVIEW_TYPE && item.weekKey === weekKey) || null;
+}
+
+function getRecentWeeklyReviews() {
+  return (state.reflections || [])
+    .filter((item) => item?.type === WEEKLY_REVIEW_TYPE)
+    .sort((a, b) => (Date.parse(b.updatedAt || b.at || "") || 0) - (Date.parse(a.updatedAt || a.at || "") || 0))
+    .slice(0, 3);
+}
+
+function getWeeklyReviewStats(habits = getTrackedHabits(), weekKey = getWeekStartKey()) {
+  const days = getRecentDays(7);
+  const rows = [];
+
+  habits.forEach((habit) => {
+    days.forEach((day) => {
+      if (!isActiveOn(habit, day)) return;
+      const log = habit.logs?.[day] || null;
+      rows.push({
+        habit,
+        day,
+        status: getStatusForDate(habit, day),
+        log,
+      });
+    });
+  });
+
+  const doneRows = rows.filter((row) => row.status === "done");
+  const missedRows = rows.filter((row) => row.status === "missed");
+  const minimumCount = doneRows.filter((row) => row.log?.minimum).length;
+  const perHabit = habits.map((habit) => {
+    const habitRows = rows.filter((row) => row.habit.id === habit.id);
+    const done = habitRows.filter((row) => row.status === "done").length;
+    const missed = habitRows.filter((row) => row.status === "missed").length;
+    const open = habitRows.filter((row) => row.status === "open").length;
+    const easeValues = habitRows
+      .filter((row) => row.status === "done")
+      .map((row) => Number(row.log?.ease || 3));
+
+    return {
+      habit,
+      due: habitRows.length,
+      done,
+      missed,
+      open,
+      completionRate: habitRows.length ? done / habitRows.length : 0,
+      averageEase: easeValues.length
+        ? easeValues.reduce((sum, value) => sum + value, 0) / easeValues.length
+        : 0,
+      frictionScore: missed * 2 + Math.max(0, habitRows.length - done - missed),
+    };
+  });
+
+  const friction = perHabit
+    .filter((item) => item.due > 0)
+    .sort((a, b) => (
+      b.frictionScore - a.frictionScore
+      || a.completionRate - b.completionRate
+      || b.due - a.due
+    ))[0];
+  const completionRate = rows.length ? doneRows.length / rows.length : 0;
+
+  return {
+    weekKey,
+    label: "Últimos 7 días",
+    dueCount: rows.length,
+    doneCount: doneRows.length,
+    missedCount: missedRows.length,
+    minimumCount,
+    completionRate,
+    frictionHabit: friction?.frictionScore > 0 ? friction.habit : null,
+    nudge: getWeeklyReviewNudge({ dueCount: rows.length, missedCount: missedRows.length, minimumCount, completionRate, friction }),
+  };
+}
+
+function getWeeklyReviewNudge({ dueCount, missedCount, minimumCount, completionRate, friction }) {
+  if (!dueCount) return "Todavía no hay suficientes días activos para revisar. Crea una semana observable antes de ajustar.";
+  if (missedCount >= 2 && friction?.habit) return `Reduce la fricción de "${friction.habit.action}" antes de aumentar esfuerzo.`;
+  if (minimumCount > 0) return "La versión mínima ya protegió continuidad. Conserva ese plan de rescate.";
+  if (completionRate >= 0.8) return "La semana está estable. Mantén el diseño y cambia solo una variable pequeña.";
+  return "Elige un ajuste mínimo: horario, señal o tamaño. No cambies todo al mismo tiempo.";
 }
 
 function getMaintenanceReadiness(habit, stats = getHabitStats(habit)) {
@@ -3364,7 +3574,7 @@ function mergeTimeline(firstItems = [], secondItems = [], limit = 20) {
   const byKey = new Map();
 
   for (const item of items) {
-    const key = [item.at, item.habitId, item.title, item.text, item.type].filter(Boolean).join("|") || JSON.stringify(item);
+    const key = item.id || [item.at, item.habitId, item.title, item.text, item.type].filter(Boolean).join("|") || JSON.stringify(item);
     byKey.set(key, item);
   }
 
@@ -3586,6 +3796,14 @@ function getHabitHistoryDays(habit) {
   const createdAt = isDateKey(habit?.createdAt) && habit.createdAt <= today ? habit.createdAt : today;
   const count = Math.max(1, daysBetween(createdAt, today) + 1);
   return Array.from({ length: count }, (_, index) => addDays(createdAt, index));
+}
+
+function getWeekStartKey(dateKey = todayKey()) {
+  const date = parseDateKey(dateKey);
+  const day = date.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + offset);
+  return toDateKey(date);
 }
 
 function todayKey() {
